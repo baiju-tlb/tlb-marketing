@@ -5,7 +5,7 @@ const cron = require('node-cron');
 const path = require('path');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
-const nodemailer = require('nodemailer');
+// const nodemailer = require('nodemailer');
 
 const db = require('./services/database');
 const { scrapeAll } = require('./services/news-scraper');
@@ -20,24 +20,8 @@ app.use(cookieParser());
 
 // ==================== AUTH ====================
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-const SESSION_SECRET = process.env.SESSION_SECRET || 'tlb-default-secret';
-const otpStore = new Map(); // email -> { otp, expires, attempts }
+const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'tlbamar';
 const sessionStore = new Map(); // token -> { email, expires }
-
-// Email transporter
-let mailTransporter = null;
-if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-  mailTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-  });
-}
-
-function generateOTP() {
-  return crypto.randomInt(100000, 999999).toString();
-}
 
 function createSession(email) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -84,76 +68,19 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Send OTP
-app.post('/api/auth/send-otp', async (req, res) => {
+// Login with email + password
+app.post('/api/auth/login', (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
+  const password = (req.body.password || '');
 
   if (!ALLOWED_EMAILS.includes(email)) {
-    return res.status(403).json({ error: 'This email is not authorized to access the dashboard.' });
+    return res.status(403).json({ error: 'This email is not authorized.' });
   }
 
-  const otp = generateOTP();
-  otpStore.set(email, { otp, expires: Date.now() + 5 * 60 * 1000, attempts: 0 }); // 5 min expiry
-
-  // Send email
-  if (mailTransporter) {
-    try {
-      await mailTransporter.sendMail({
-        from: `"TLB Marketing" <${process.env.SMTP_USER}>`,
-        to: email,
-        subject: 'Your TLB Dashboard Login Code',
-        html: `
-          <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
-            <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" style="height: 40px; margin-bottom: 24px;">
-            <h2 style="color: #1e293b; margin-bottom: 8px;">Login Code</h2>
-            <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">Use this code to log in to TLB Marketing Dashboard:</p>
-            <div style="background: #f1f5f9; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 24px;">
-              <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #1e293b;">${otp}</span>
-            </div>
-            <p style="color: #94a3b8; font-size: 12px;">This code expires in 5 minutes. If you didn't request this, ignore this email.</p>
-          </div>
-        `
-      });
-      console.log(`OTP sent to ${email}`);
-    } catch (err) {
-      console.error('Email send error:', err.message);
-      // Still return success so we don't leak info, but log the OTP for dev
-      console.log(`[DEV] OTP for ${email}: ${otp}`);
-    }
-  } else {
-    // No SMTP configured, log OTP to console (dev mode)
-    console.log(`[DEV] OTP for ${email}: ${otp}`);
+  if (password !== LOGIN_PASSWORD) {
+    return res.status(401).json({ error: 'Incorrect password.' });
   }
 
-  res.json({ success: true, message: 'OTP sent to your email' });
-});
-
-// Verify OTP
-app.post('/api/auth/verify-otp', (req, res) => {
-  const email = (req.body.email || '').trim().toLowerCase();
-  const otp = (req.body.otp || '').trim();
-
-  const stored = otpStore.get(email);
-  if (!stored) {
-    return res.status(400).json({ error: 'No OTP requested. Please request a new code.' });
-  }
-
-  if (Date.now() > stored.expires) {
-    otpStore.delete(email);
-    return res.status(400).json({ error: 'OTP expired. Please request a new code.' });
-  }
-
-  stored.attempts++;
-  if (stored.attempts > 5) {
-    otpStore.delete(email);
-    return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
-  }
-
-  if (stored.otp !== otp) {
-    return res.status(400).json({ error: 'Invalid code. Please try again.' });
-  }
-
-  otpStore.delete(email);
   const token = createSession(email);
 
   res.cookie('tlb_session', token, {
