@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TLB Marketing Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['DM Sans', 'sans-serif'] },
+          colors: { brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' } }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="app" class="flex min-h-screen">
+
+    <!-- Mobile Top Bar -->
+    <div class="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-40 flex items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-2">
+        <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="h-8 w-auto">
+      </div>
+      <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-100">
+        <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
+      </button>
+    </div>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-40 lg:hidden hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-60 bg-white border-r border-gray-200 fixed h-screen flex flex-col z-50 transition-transform duration-200 -translate-x-full lg:translate-x-0">
+      <div class="p-4 border-b border-gray-100">
+        <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="h-9 w-auto">
+        <p class="text-xs text-gray-400 tracking-wide uppercase mt-1.5">Marketing Hub</p>
+      </div>
+      <nav class="flex-1 py-4">
+        <a onclick="navigate('dashboard'); closeSidebarMobile()" class="nav-link active flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="dashboard">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+        </a>
+        <a onclick="navigate('news'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="news">
+          <i data-lucide="newspaper" class="w-4 h-4"></i> News Feed
+          <span id="nav-news-badge" class="ml-auto text-xs bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full hidden">0</span>
+        </a>
+        <a onclick="navigate('posts'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="posts">
+          <i data-lucide="file-text" class="w-4 h-4"></i> Posts
+          <span id="nav-posts-badge" class="ml-auto text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full hidden">0</span>
+        </a>
+        <a onclick="navigate('write-article'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="write-article">
+          <i data-lucide="book-open" class="w-4 h-4"></i> Articles
+          <span id="nav-articles-badge" class="ml-auto text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full hidden">0</span>
+        </a>
+        <a onclick="navigate('calendar'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="calendar">
+          <i data-lucide="calendar" class="w-4 h-4"></i> Calendar
+        </a>
+        <a onclick="navigate('settings'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="settings">
+          <i data-lucide="settings" class="w-4 h-4"></i> Settings
+        </a>
+      </nav>
+      <div id="sidebar-user" class="p-4 border-t border-gray-100">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold text-sm">?</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-500 truncate" id="sidebar-user-email">Loading...</p>
+            <p class="text-xs text-gray-400">Admin</p>
+          </div>
+          <button onclick="logout()" class="text-gray-400 hover:text-red-500 transition" title="Logout">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 lg:ml-60 pt-14 lg:pt-0">
+
+      <!-- ========== DASHBOARD PAGE ========== -->
+      <div id="page-dashboard" class="page p-4 sm:p-6 lg:p-8">
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
+            <p class="text-sm text-gray-400 mt-1">Overview of your marketing pipeline</p>
+          </div>
+          <button onclick="scrapeNews()" id="btn-scrape" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Fetch News
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="stats-grid">
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center"><i data-lucide="newspaper" class="w-5 h-5 text-blue-500"></i></div>
+              <span class="text-xs text-gray-400 uppercase tracking-wide">New Articles</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-new-articles">0</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center"><i data-lucide="file-edit" class="w-5 h-5 text-purple-500"></i></div>
+              <span class="text-xs text-gray-400 uppercase tracking-wide">Drafts</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-drafts">0</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><i data-lucide="check-circle" class="w-5 h-5 text-green-500"></i></div>
+              <span class="text-xs text-gray-400 uppercase tracking-wide">Approved</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-approved">0</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-100 p-5">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center"><i data-lucide="send" class="w-5 h-5 text-sky-500"></i></div>
+              <span class="text-xs text-gray-400 uppercase tracking-wide">Published</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-published">0</p>
+          </div>
+        </div>
+
+        <!-- Recent Articles & Posts side by side -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Recent Articles -->
+          <div class="bg-white rounded-xl border border-gray-100">
+            <div class="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+              <h3 class="font-semibold text-gray-700 text-sm">Recent Articles</h3>
+              <a onclick="navigate('news')" class="text-xs text-brand-600 cursor-pointer hover:underline">View all</a>
+            </div>
+            <div id="recent-articles" class="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+              <div class="p-8 text-center text-sm text-gray-400">Click "Fetch News" to get started</div>
+            </div>
+          </div>
+
+          <!-- Recent Posts -->
+          <div class="bg-white rounded-xl border border-gray-100">
+            <div class="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+              <h3 class="font-semibold text-gray-700 text-sm">Recent Post Drafts</h3>
+              <a onclick="navigate('posts')" class="text-xs text-brand-600 cursor-pointer hover:underline">View all</a>
+            </div>
+            <div id="recent-posts" class="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+              <div class="p-8 text-center text-sm text-gray-400">No posts yet. Generate from articles.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== NEWS FEED PAGE ========== -->
+      <div id="page-news" class="page p-4 sm:p-6 lg:p-8 hidden">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">News Feed</h2>
+            <p class="text-sm text-gray-400 mt-1">Land-related news from Odisha, Karnataka & national</p>
+          </div>
+          <button onclick="scrapeNews()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Fetch News
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="flex gap-3 mb-6 flex-wrap">
+          <select id="filter-region" onchange="loadArticles()" class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600">
+            <option value="">All Regions</option>
+            <option value="odisha">Odisha</option>
+            <option value="karnataka">Karnataka</option>
+            <option value="national">National</option>
+          </select>
+          <select id="filter-status" onchange="loadArticles()" class="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600">
+            <option value="">All Status</option>
+            <option value="new">New</option>
+            <option value="used">Used</option>
+            <option value="skipped">Skipped</option>
+          </select>
+        </div>
+
+        <div id="articles-list" class="space-y-3">
+          <div class="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+            No articles found. Click "Fetch News" to scrape latest news.
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== POSTS PAGE ========== -->
+      <div id="page-posts" class="page p-4 sm:p-6 lg:p-8 hidden">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">Posts</h2>
+            <p class="text-sm text-gray-400 mt-1">AI-generated LinkedIn posts for review</p>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-6">
+          <button onclick="filterPosts('')" class="post-tab px-4 py-1.5 rounded-md text-sm font-medium transition bg-white text-gray-800 shadow-sm" data-status="">All</button>
+          <button onclick="filterPosts('draft')" class="post-tab px-4 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700" data-status="draft">Drafts</button>
+          <button onclick="filterPosts('approved')" class="post-tab px-4 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700" data-status="approved">Approved</button>
+          <button onclick="filterPosts('scheduled')" class="post-tab px-4 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700" data-status="scheduled">Scheduled</button>
+          <button onclick="filterPosts('published')" class="post-tab px-4 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700" data-status="published">Published</button>
+        </div>
+
+        <div id="posts-list" class="space-y-4">
+          <div class="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+            No posts yet. Go to News Feed and generate posts from articles.
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== CALENDAR PAGE ========== -->
+      <div id="page-calendar" class="page p-4 sm:p-6 lg:p-8 hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Calendar</h2>
+        <p class="text-sm text-gray-400 mb-6">Scheduled and published posts timeline</p>
+        <div id="calendar-list" class="space-y-4">
+          <div class="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+            No scheduled posts yet.
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== ARTICLES PAGE ========== -->
+      <div id="page-write-article" class="page p-4 sm:p-6 lg:p-8 hidden">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">LinkedIn Articles</h2>
+            <p class="text-sm text-gray-400 mt-1">Write long-form articles for LinkedIn</p>
+          </div>
+          <button onclick="openNewArticleModal()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+            <i data-lucide="plus" class="w-4 h-4"></i> New Article
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-6">
+          <button onclick="filterLinkedinArticles('')" class="la-tab px-4 py-1.5 rounded-md text-sm font-medium transition bg-white text-gray-800 shadow-sm" data-status="">All</button>
+          <button onclick="filterLinkedinArticles('draft')" class="la-tab px-4 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700" data-status="draft">Drafts</button>
+          <button onclick="filterLinkedinArticles('approved')" class="la-tab px-4 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700" data-status="approved">Approved</button>
+          <button onclick="filterLinkedinArticles('published')" class="la-tab px-4 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700" data-status="published">Published</button>
+        </div>
+
+        <div id="linkedin-articles-list" class="space-y-4">
+          <div class="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">
+            No articles yet. Click "New Article" to get started.
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== SETTINGS PAGE ========== -->
+      <div id="page-settings" class="page p-4 sm:p-6 lg:p-8 hidden">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Settings</h2>
+        <p class="text-sm text-gray-400 mb-6">Configure your marketing automation</p>
+
+        <div class="max-w-2xl space-y-6">
+          <div class="bg-white rounded-xl border border-gray-100 p-6">
+            <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-gray-400"></i> General
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm text-gray-500 mb-1">Posts per week</label>
+                <input type="number" id="setting-frequency" value="3" min="1" max="14" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-sm text-gray-500 mb-1">Tone</label>
+                <select id="setting-tone" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                  <option value="professional">Professional</option>
+                  <option value="casual">Casual</option>
+                  <option value="thought_leader">Thought Leader</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-100 p-6">
+            <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <i data-lucide="linkedin" class="w-4 h-4 text-gray-400"></i> LinkedIn Integration
+            </h3>
+            <p class="text-sm text-gray-500 mb-3">Company ID: <code class="bg-gray-100 px-2 py-0.5 rounded text-xs">112976963</code></p>
+            <div id="linkedin-status" class="mt-3">
+              <!-- Filled by JS -->
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-100 p-6">
+            <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-gray-400"></i> AI Configuration
+            </h3>
+            <p class="text-sm text-gray-500 mb-1">Model: <code class="bg-gray-100 px-2 py-0.5 rounded text-xs">Gemini 2.5 Flash</code></p>
+            <p class="text-sm text-gray-500">Image: <code class="bg-gray-100 px-2 py-0.5 rounded text-xs">Gemini 2.5 Flash Image</code></p>
+          </div>
+
+          <button onclick="saveSettings()" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">Save Settings</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Generate Post Modal -->
+  <div id="modal-generate" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[520px] max-w-[90vw] p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Generate LinkedIn Post</h3>
+        <button onclick="closeModal('modal-generate')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div id="modal-article-preview" class="bg-gray-50 rounded-lg p-4 mb-4 text-sm text-gray-600"></div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Post Type</label>
+        <select id="modal-post-type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="news_commentary">News Commentary</option>
+          <option value="educational">Educational</option>
+          <option value="industry_insight">Industry Insight</option>
+          <option value="product_highlight">Product Highlight</option>
+        </select>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-generate')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="generatePostFromModal()" id="btn-generate-post" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4"></i> Generate
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Post Modal -->
+  <div id="modal-edit" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[600px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Edit Post</h3>
+        <button onclick="closeModal('modal-edit')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Post Content</label>
+        <textarea id="edit-content" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[200px] leading-relaxed" rows="10"></textarea>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Image Prompt</label>
+        <input type="text" id="edit-image-prompt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-edit')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="savePostEdit()" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LinkedIn Preview Modal -->
+  <div id="modal-preview" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[520px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">LinkedIn Preview</h3>
+        <button onclick="closeModal('modal-preview')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <!-- Fake LinkedIn card -->
+      <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <div class="p-4 pb-2">
+          <div class="flex gap-3 mb-3">
+            <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
+            <div>
+              <p class="font-semibold text-sm text-gray-800">The Land Bank</p>
+              <p class="text-xs text-gray-400">PropTech Platform</p>
+              <p class="text-xs text-gray-400">Just now</p>
+            </div>
+          </div>
+        </div>
+        <div id="preview-image-container" class="hidden">
+          <img id="preview-image" class="w-full" />
+        </div>
+        <div class="px-4 py-3">
+          <div id="preview-content" class="text-sm text-gray-700 leading-relaxed post-content-text"></div>
+        </div>
+        <div class="px-4 py-3 border-t border-gray-100 flex gap-6 text-xs text-gray-400">
+          <span class="flex items-center gap-1"><i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> Like</span>
+          <span class="flex items-center gap-1"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Comment</span>
+          <span class="flex items-center gap-1"><i data-lucide="repeat" class="w-3.5 h-3.5"></i> Repost</span>
+          <span class="flex items-center gap-1"><i data-lucide="send" class="w-3.5 h-3.5"></i> Send</span>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-4">
+        <button onclick="closeModal('modal-preview')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
+        <button onclick="copyPreviewContent()" id="btn-copy-preview" class="bg-gray-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition flex items-center gap-2">
+          <i data-lucide="copy" class="w-4 h-4"></i> Copy to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Modal -->
+  <div id="modal-schedule" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[440px] max-w-[90vw] p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Schedule Post</h3>
+        <button onclick="closeModal('modal-schedule')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Date and Time (IST)</label>
+        <input type="datetime-local" id="schedule-datetime" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="bg-amber-50 border border-amber-100 rounded-lg p-3 mb-4">
+        <p class="text-xs text-amber-700 flex items-start gap-2">
+          <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+          Best times to post on LinkedIn: 8-9 AM, 12-1 PM, or 5-6 PM IST on weekdays.
+        </p>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-schedule')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="confirmSchedule()" id="btn-schedule-confirm" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
+          <i data-lucide="clock" class="w-4 h-4"></i> Schedule
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Generation Modal -->
+  <div id="modal-image" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[520px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Generate Image</h3>
+        <button onclick="closeModal('modal-image')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1.5">Image Style</label>
+        <div class="grid grid-cols-3 gap-2" id="image-style-grid">
+          <button type="button" onclick="selectImageStyle('photorealistic')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-brand-500 bg-brand-50 text-xs font-medium text-gray-700 text-center transition" data-style="photorealistic">
+            <span class="block text-base mb-0.5">📷</span>Photorealistic
+          </button>
+          <button type="button" onclick="selectImageStyle('illustration')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="illustration">
+            <span class="block text-base mb-0.5">🎨</span>Illustration
+          </button>
+          <button type="button" onclick="selectImageStyle('cartoon')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="cartoon">
+            <span class="block text-base mb-0.5">🖌️</span>Cartoon
+          </button>
+          <button type="button" onclick="selectImageStyle('3d_render')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="3d_render">
+            <span class="block text-base mb-0.5">🧊</span>3D Render
+          </button>
+          <button type="button" onclick="selectImageStyle('flat_design')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="flat_design">
+            <span class="block text-base mb-0.5">📐</span>Flat Design
+          </button>
+          <button type="button" onclick="selectImageStyle('watercolor')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="watercolor">
+            <span class="block text-base mb-0.5">💧</span>Watercolor
+          </button>
+          <button type="button" onclick="selectImageStyle('infographic')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="infographic">
+            <span class="block text-base mb-0.5">📊</span>Infographic
+          </button>
+          <button type="button" onclick="selectImageStyle('minimalist')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="minimalist">
+            <span class="block text-base mb-0.5">⬜</span>Minimalist
+          </button>
+          <button type="button" onclick="selectImageStyle('isometric')" class="img-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="isometric">
+            <span class="block text-base mb-0.5">🔷</span>Isometric
+          </button>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Image Prompt</label>
+        <textarea id="image-gen-prompt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[120px] leading-relaxed" rows="5" placeholder="Describe the image you want..."></textarea>
+      </div>
+      <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
+        <p class="text-xs text-blue-700 flex items-start gap-2">
+          <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+          Select a style and edit the prompt. The selected style will be applied to the image generation.
+        </p>
+      </div>
+      <div id="image-gen-preview" class="mb-4 hidden">
+        <img id="image-gen-preview-img" class="w-full rounded-lg border border-gray-100" />
+      </div>
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-image')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="confirmImageGen()" id="btn-image-gen-confirm" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
+          <i data-lucide="image" class="w-4 h-4"></i> Generate Image
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Article Modal -->
+  <div id="modal-new-article" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[560px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Create LinkedIn Article</h3>
+        <button onclick="closeModal('modal-new-article')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- Source tabs -->
+      <div class="flex gap-1 bg-gray-100 p-1 rounded-lg mb-4">
+        <button onclick="switchArticleSource('news')" id="art-src-news" class="flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition bg-white text-gray-800 shadow-sm">From News Feed</button>
+        <button onclick="switchArticleSource('custom')" id="art-src-custom" class="flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition text-gray-500">Custom Topic</button>
+      </div>
+
+      <!-- News source -->
+      <div id="art-source-news" class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Select a news article</label>
+        <select id="art-news-select" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="">Loading articles...</option>
+        </select>
+      </div>
+
+      <!-- Custom topic -->
+      <div id="art-source-custom" class="mb-4 hidden">
+        <label class="block text-sm text-gray-500 mb-1">Article Topic</label>
+        <textarea id="art-custom-topic" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[80px]" placeholder="E.g., How to verify land records in Odisha using Bhulekh portal"></textarea>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Article Type</label>
+        <select id="art-type-select" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="educational">Educational Guide</option>
+          <option value="market_analysis">Market Analysis</option>
+          <option value="land_security">Land Security & Protection</option>
+          <option value="land_documents">Land Documents Guide</option>
+        </select>
+      </div>
+
+      <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
+        <p class="text-xs text-blue-700 flex items-start gap-2">
+          <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+          This will generate a full LinkedIn article (800-1200 words) with title, subtitle, structured sections, and a cover image prompt.
+        </p>
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-new-article')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="generateLinkedinArticle()" id="btn-gen-article" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Article
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Article Modal (full editor) -->
+  <div id="modal-edit-article" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[800px] max-w-[95vw] max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Edit Article</h3>
+        <button onclick="closeModal('modal-edit-article')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Title</label>
+        <input type="text" id="edit-art-title" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Subtitle</label>
+        <input type="text" id="edit-art-subtitle" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Content</label>
+        <textarea id="edit-art-content" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[400px] leading-relaxed font-mono" rows="20"></textarea>
+        <p class="text-xs text-gray-400 mt-1">Use ## for section headings. Bullet points with - are supported.</p>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Cover Image Prompt</label>
+        <textarea id="edit-art-cover-prompt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" rows="3"></textarea>
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-edit-article')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="saveArticleEdit()" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Article Preview Modal -->
+  <div id="modal-preview-article" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[720px] max-w-[95vw] max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Article Preview</h3>
+        <button onclick="closeModal('modal-preview-article')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- LinkedIn Article style preview -->
+      <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <div id="preview-art-cover" class="hidden">
+          <img id="preview-art-cover-img" class="w-full max-h-80 object-cover" />
+        </div>
+        <div class="p-6">
+          <h1 id="preview-art-title" class="text-2xl font-bold text-gray-900 mb-2"></h1>
+          <p id="preview-art-subtitle" class="text-base text-gray-500 mb-4"></p>
+          <div class="flex gap-3 mb-6 pb-4 border-b border-gray-100">
+            <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="w-10 h-10 rounded-full object-cover">
+            <div>
+              <p class="font-semibold text-sm text-gray-800">The Land Bank</p>
+              <p class="text-xs text-gray-400">PropTech Platform</p>
+            </div>
+          </div>
+          <div id="preview-art-content" class="prose prose-sm max-w-none text-gray-700 leading-relaxed"></div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-4">
+        <button onclick="closeModal('modal-preview-article')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
+        <button onclick="copyArticleContent()" id="btn-copy-article" class="bg-gray-800 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition flex items-center gap-2">
+          <i data-lucide="copy" class="w-4 h-4"></i> Copy Article
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Article Cover Image Modal -->
+  <div id="modal-article-cover" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[520px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Generate Cover Image</h3>
+        <button onclick="closeModal('modal-article-cover')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1.5">Image Style</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="selectCoverStyle('photorealistic')" class="cover-style-btn px-3 py-2 rounded-lg border-2 border-brand-500 bg-brand-50 text-xs font-medium text-gray-700 text-center transition" data-style="photorealistic">
+            <span class="block text-base mb-0.5">📷</span>Photorealistic
+          </button>
+          <button type="button" onclick="selectCoverStyle('illustration')" class="cover-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="illustration">
+            <span class="block text-base mb-0.5">🎨</span>Illustration
+          </button>
+          <button type="button" onclick="selectCoverStyle('cartoon')" class="cover-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="cartoon">
+            <span class="block text-base mb-0.5">🖌️</span>Cartoon
+          </button>
+          <button type="button" onclick="selectCoverStyle('3d_render')" class="cover-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="3d_render">
+            <span class="block text-base mb-0.5">🧊</span>3D Render
+          </button>
+          <button type="button" onclick="selectCoverStyle('flat_design')" class="cover-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="flat_design">
+            <span class="block text-base mb-0.5">📐</span>Flat Design
+          </button>
+          <button type="button" onclick="selectCoverStyle('minimalist')" class="cover-style-btn px-3 py-2 rounded-lg border-2 border-gray-200 text-xs font-medium text-gray-700 text-center transition hover:border-gray-300" data-style="minimalist">
+            <span class="block text-base mb-0.5">⬜</span>Minimalist
+          </button>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-500 mb-1">Cover Image Prompt</label>
+        <textarea id="art-cover-prompt" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[120px] leading-relaxed" rows="5"></textarea>
+      </div>
+      <div id="art-cover-preview" class="mb-4 hidden">
+        <img id="art-cover-preview-img" class="w-full rounded-lg border border-gray-100" />
+      </div>
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-article-cover')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="confirmArticleCoverGen()" id="btn-art-cover-gen" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
+          <i data-lucide="image" class="w-4 h-4"></i> Generate Cover
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish Article Modal -->
+  <div id="modal-publish-article" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[480px] max-w-[90vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Publish Article to LinkedIn</h3>
+        <button onclick="closeModal('modal-publish-article')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-4">
+        <p class="text-sm font-medium text-blue-800 mb-1" id="publish-art-title"></p>
+      </div>
+
+      <div id="publish-art-cover-info" class="mb-4"></div>
+
+      <div class="space-y-3 mb-5">
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-xs font-bold text-brand-600">1</span>
+          </div>
+          <p class="text-sm text-gray-600">Article content will be <strong>copied to clipboard</strong></p>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-xs font-bold text-brand-600">2</span>
+          </div>
+          <p class="text-sm text-gray-600">LinkedIn article editor opens as <strong>The Land Bank</strong> company page</p>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-xs font-bold text-brand-600">3</span>
+          </div>
+          <p class="text-sm text-gray-600"><strong>Paste</strong> the content (Ctrl+V / Cmd+V) in the editor</p>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-xs font-bold text-brand-600">4</span>
+          </div>
+          <p class="text-sm text-gray-600">Upload the <strong>cover image</strong> (download above) and hit Publish</p>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('modal-publish-article')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="confirmPublishArticle()" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2">
+          <i data-lucide="external-link" class="w-4 h-4"></i> Copy & Open LinkedIn Editor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

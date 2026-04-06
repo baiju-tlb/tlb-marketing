@@ -1,0 +1,21 @@
+{
+  "name": "tlb-marketing",
+  "version": "1.0.0",
+  "description": "Automated LinkedIn marketing for The Land Bank",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "scrape": "node services/news-scraper.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^8.0.4",
+    "rss-parser": "^3.13.0"
+  }
+}

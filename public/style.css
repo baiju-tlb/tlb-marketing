@@ -1,0 +1,62 @@
+/* Custom overrides for Tailwind */
+body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+/* Post content whitespace */
+.post-content-text { white-space: pre-wrap; }
+
+/* Toast animation */
+.toast-enter { animation: slideUp 0.3s ease; }
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Spinner */
+.spinner {
+  border: 2px solid #e2e8f0;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Article content */
+.prose h1 { font-size: 1.25rem; font-weight: 700; }
+.prose h2 { font-size: 1.125rem; font-weight: 600; }
+.prose li { list-style-type: disc; }
+.prose li:has(+ li) { margin-bottom: 0.25rem; }
+
+/* Mobile responsive pages */
+@media (max-width: 1023px) {
+  .page { padding: 16px !important; }
+  .page h2 { font-size: 1.25rem !important; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .grid-cols-1.lg\:grid-cols-2 { grid-template-columns: 1fr !important; }
+
+  /* Post card buttons wrap */
+  .post-card-actions { flex-direction: column; }
+}
+
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+
+  /* Modals full width on small screens */
+  .fixed .bg-white.rounded-2xl {
+    width: 95vw !important;
+    max-width: 95vw !important;
+  }
+
+  /* Filters stack */
+  .filters-wrap { flex-direction: column; }
+
+  /* Post tabs scroll */
+  .flex.gap-1.bg-gray-100 { overflow-x: auto; white-space: nowrap; }
+}
