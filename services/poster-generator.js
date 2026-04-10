@@ -40,18 +40,29 @@ const GEMINI_TEXT_URL = `https://generativelanguage.googleapis.com/v1beta/models
 const GEMINI_IMAGE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
 
 // ==================== BRAND ====================
+// Official TLB palette from https://www.thelandbankers.com/branding
 const TLB_BRAND = {
-  teal: '#7DD3BD',
-  tealSoft: '#A8E6D3',
-  navyDeep: '#0A1628',
-  navyMid: '#142840',
-  cream: '#F5F1EA',
+  teal50:  '#F0FAF9',
+  teal100: '#D4F0ED',
+  teal200: '#A8E2DB',
+  teal300: '#6DCEC5',
+  teal400: '#30B0A4', // primary
+  teal500: '#289990',
+  teal600: '#207B74',
+  teal700: '#1A635E',
+  dark900: '#0C1421',
+  dark800: '#101828',
+  dark700: '#1A2332',
+  slate700: '#334155',
+  gray500: '#667085',
   white: '#FFFFFF'
 };
 
 const TLB_PHONE = process.env.TLB_PHONE || '+91 63725 15684';
 const TLB_WEBSITE = process.env.TLB_WEBSITE || 'www.thelandbankers.com';
-const LOGO_PATH = path.join(__dirname, '..', 'public', 'assets', 'tlb-logo.png');
+const LOGO_DARK_PATH  = path.join(__dirname, '..', 'public', 'assets', 'tlb-logo-dark.svg');  // for light bg
+const LOGO_WHITE_PATH = path.join(__dirname, '..', 'public', 'assets', 'tlb-logo-white.svg'); // for dark bg
+const LOGO_ASPECT = 3645 / 974; // w/h of the SVG viewBox
 
 // ==================== OCCASIONS ====================
 const OCCASIONS = {
@@ -122,21 +133,23 @@ const OCCASIONS = {
 };
 
 // ==================== LANGUAGES ====================
+// TLB brand typeface is DM Sans. Noto Sans is a close geometric fallback.
+// Odia/Kannada need their dedicated Noto families to render script correctly.
 const LANGUAGES = {
   english: {
     label: 'English',
     code: 'en',
-    font: 'Noto Sans, DM Sans, Arial, sans-serif'
+    font: 'DM Sans, Noto Sans, Arial, sans-serif'
   },
   odia: {
     label: 'Odia (ଓଡ଼ିଆ)',
     code: 'or',
-    font: 'Noto Sans Oriya, Anek Odia, Noto Sans, sans-serif'
+    font: 'Noto Sans Oriya, DM Sans, Noto Sans, sans-serif'
   },
   kannada: {
     label: 'Kannada (ಕನ್ನಡ)',
     code: 'kn',
-    font: 'Noto Sans Kannada, Kannada Sangam MN, Noto Sans, sans-serif'
+    font: 'Noto Sans Kannada, DM Sans, Noto Sans, sans-serif'
   }
 };
 
@@ -149,18 +162,20 @@ const SIZES = {
 };
 
 // ==================== BACKGROUND STYLES ====================
+// Subject only — palette/mood comes from the user's brief ("Your idea / brief")
+// so users can say "vibrant festive" / "monochrome gold" / "warm golden hour".
 const BG_STYLES = {
   plain: {
     label: 'Plain / Gradient',
-    desc: 'elegant solid or subtle gradient background using TLB deep navy (#0A1628) transitioning to mid navy (#142840) with faint teal accent highlights, minimalist and classy with plenty of negative space'
+    desc: 'an elegant minimalist background — solid or subtle gradient — with plenty of negative space and a single soft highlight, editorial and premium'
   },
   graphics: {
     label: 'Graphics / Illustration',
-    desc: 'abstract modern graphics and soft geometric illustrated elements, festive or thematic motifs rendered in an editorial illustration style, subtle and premium'
+    desc: 'abstract modern graphics and soft geometric illustrated elements, thematic motifs rendered in an editorial illustration style, premium and uncluttered'
   },
   people: {
     label: 'With People',
-    desc: 'warm lifestyle photography of Indian people, family or individuals in an authentic and respectful composition, soft depth of field, cinematic tones'
+    desc: 'warm lifestyle photography of Indian people, family or individuals in an authentic and respectful composition, soft depth of field, cinematic tones, editorial quality'
   }
 };
 
@@ -235,7 +250,9 @@ async function generatePosterCopy({ occasion, customPrompt, language }) {
     langInstruction = 'Write headline, subtext and tagline in Kannada using native Kannada script (ಕನ್ನಡ). Use natural, culturally appropriate Kannada. Do NOT transliterate into English letters.';
   }
 
-  const prompt = `You are the brand copywriter for "The Land Bank" (TLB), a PropTech platform in India that simplifies land records, due diligence and land banking.
+  const prompt = `You are the brand copywriter for "The Land Bankers" (TLB), India's first land rating platform. TLB helps landowners verify documents, monitor boundaries, value their land, and resolve disputes. Official brand tagline: "We protect your land, online and on ground, not just on papers."
+
+TLB brand voice is: clear, trustworthy, helpful, and grounded. Approachable but never casual. Informed but never intimidating. Real talk about land ownership in India, not Silicon Valley hype. Plain language, not jargon.
 
 Create copy for a social media poster.
 
@@ -247,16 +264,18 @@ ${langInstruction}
 Return ONLY a valid JSON object (no markdown fences, no explanation) with these exact keys:
 {
   "headline": "Main bold line, 2-4 words MAX, eye-catching",
-  "subtext": "Supporting wish or message, 8-14 words, warm and classy",
-  "tagline": "Short brand tagline, 3-5 words"
+  "subtext": "Supporting message, 8-14 words, warm and grounded",
+  "tagline": "Short brand line, 3-5 words"
 }
 
 Rules:
-- Do NOT use em dashes or en dashes anywhere (use commas or periods)
-- Keep everything concise, premium, respectful
+- Do NOT use em dashes or en dashes anywhere. Use commas or periods.
+- Keep everything concise, confident, respectful
 - Headline must be SHORT and impactful (max 4 words)
-- For festivals, celebratory but classy tone
-- For land/business content, trustworthy and professional tone`;
+- For festivals, warm and celebratory but never over the top
+- For land/business themes, trustworthy and plain-spoken, never salesy
+- Never use cliches like "unlock", "revolutionise", "game changer"
+- Sound like someone who actually understands land, not a marketing agency`;
 
   const raw = await geminiText(prompt, { temperature: 0.9, maxTokens: 1024, noThinking: true });
   let cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
@@ -282,22 +301,28 @@ async function generateBackgroundPrompt({ occasion, customPrompt, backgroundStyl
   const bg = BG_STYLES[backgroundStyle] || BG_STYLES.graphics;
   const sizeCfg = SIZES[size] || SIZES.square;
 
-  return `Create a premium social media poster BACKGROUND image for "The Land Bank" (TLB), a PropTech company in India.
+  // Palette direction: if the user brief mentions any colour/mood cues, they take
+  // precedence over the default brand palette. Otherwise stick to TLB navy + teal.
+  const hasBrief = Boolean(customPrompt && customPrompt.trim());
+  const paletteRule = hasBrief
+    ? `- Colour and mood direction: follow the user brief above exactly. If the brief mentions specific colours, moods, or a palette (e.g. "vibrant pinks", "monochrome gold", "warm pastel"), those OVERRIDE any default brand palette. Do NOT add TLB navy or teal unless the brief asks for it.`
+    : `- Colour palette: use TLB brand palette only — dark navy (#0C1421), dark slate (#101828), TLB teal (#30B0A4), soft teal (#A8E2DB). Do not introduce other colours.`;
 
-Concept: ${occ.context || 'land and property branding in India'}
-${customPrompt ? `Additional context: ${customPrompt}` : ''}
+  return `Create a premium social media poster BACKGROUND image for "The Land Bankers" (TLB), India's first land rating platform.
 
-Background style: ${bg.desc}
+Concept / Occasion: ${occ.context || 'land and property branding in India'}
+${hasBrief ? `User brief (HIGHEST PRIORITY — follow this for mood, colours, subject details): ${customPrompt.trim()}` : ''}
+
+Subject style: ${bg.desc}
 
 Critical requirements:
 - Aspect ratio: ${sizeCfg.aspect} (${sizeCfg.width}x${sizeCfg.height})
-- Use TLB brand palette: deep navy (#0A1628), mid navy (#142840), teal mint accent (#7DD3BD), warm cream (#F5F1EA)
-- Leave the LOWER HALF of the image relatively clean or softly darkened so text and logo can be clearly overlaid
-- Elegant, editorial, magazine-quality design
-- Generous breathing space and negative space
-- Subtle vignette or soft dark gradient at the bottom for text legibility
-- Absolutely NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO WATERMARKS of any kind
-- Classy and premium feel, not cluttered or busy`;
+${paletteRule}
+- Leave the LOWER HALF of the image relatively clean or softly darkened so text and logo can be clearly overlaid on top
+- Keep the composition balanced with clear breathing space, editorial and magazine-quality
+- Subtle vignette or soft darkening toward the bottom edge to help text legibility
+- Absolutely NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO WATERMARKS, NO TYPOGRAPHY of any kind anywhere in the image
+- Premium, confident, uncluttered. Never busy, never tacky.`;
 }
 
 async function generateBackgroundImage(opts) {
@@ -334,43 +359,52 @@ function wrapTextLines(text, maxChars) {
   return lines;
 }
 
-function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, website, fontFamily, logoPillRect }) {
+// Shared layout computation so the main generator and the overlay builder agree
+// on logo placement (needed for the luminance-based logo color pick).
+function computePosterLayout({ width, height }) {
   const isLandscape = width > height;
-
-  // Font sizes based on shortest dimension for consistency
   const base = Math.min(width, height);
-  const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.1);
-  const subtextSize = Math.round(base * 0.034);
-  const taglineSize = Math.round(base * 0.028);
-  const metaSize = Math.round(base * 0.025);
 
-  // Character width estimate (0.55 for latin, 0.65 for complex scripts average)
+  const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.1);
+  const subtextSize  = Math.round(base * 0.034);
+  const taglineSize  = Math.round(base * 0.028);
+  const metaSize     = Math.round(base * 0.025);
+
+  const padBottom = Math.round(height * 0.055);
+  const metaY     = height - padBottom;
+
+  // Logo sits above the meta line, no pill.
+  const logoWidth  = Math.round(width * 0.24);
+  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
+  const logoGapBelow = Math.round(base * 0.022);
+  const logoBottom = metaY - metaSize - logoGapBelow;
+  const logoTop    = logoBottom - logoHeight;
+  const logoLeft   = Math.round((width - logoWidth) / 2);
+
+  return {
+    base, isLandscape,
+    headlineSize, subtextSize, taglineSize, metaSize,
+    padBottom, metaY,
+    logoWidth, logoHeight, logoTop, logoLeft, logoBottom
+  };
+}
+
+function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, website, fontFamily, layout, logoIsWhite }) {
+  const { base, headlineSize, subtextSize, taglineSize, metaSize, metaY, logoTop } = layout;
+
+  // Character width estimate (geometric sans).
   const charW = 0.58;
   const headlineMaxChars = Math.max(6, Math.floor((width * 0.84) / (headlineSize * charW)));
-  const subtextMaxChars = Math.max(10, Math.floor((width * 0.82) / (subtextSize * charW)));
+  const subtextMaxChars  = Math.max(10, Math.floor((width * 0.82) / (subtextSize * charW)));
 
   const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
-  const subtextLines = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
-
-  // Layout anchored from bottom
-  const padBottom = Math.round(height * 0.055);
+  const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
   const centerX = width / 2;
 
-  // Bottom: website+phone
-  const metaY = height - padBottom;
-
-  // Logo pill above meta
-  const pillHeight = logoPillRect.height;
-  const pillWidth = logoPillRect.width;
-  const pillGapBelow = Math.round(base * 0.022);
-  const pillBottom = metaY - metaSize - pillGapBelow;
-  const pillTop = pillBottom - pillHeight;
-  const pillX = Math.round((width - pillWidth) / 2);
-
-  // Subtext above pill
+  // Subtext above logo
   const subtextGapBelow = Math.round(base * 0.035);
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
-  const subtextBottom = pillTop - subtextGapBelow;
+  const subtextBottom = logoTop - subtextGapBelow;
   const subtextStartY = subtextBottom - subtextBlockHeight + subtextSize;
 
   // Headline above subtext
@@ -383,9 +417,11 @@ function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, web
   const taglineGap = Math.round(base * 0.025);
   const taglineY = headlineStartY - headlineSize - taglineGap;
 
-  // Gradient start where content begins
-  const contentTop = Math.max(0, taglineY - taglineSize * 2);
-  const gradPct = Math.max(10, Math.min(90, Math.round((contentTop / height) * 100)));
+  // Gradient: start well above the tagline so the tagline itself sits inside
+  // the darkened zone (previously the tagline was stuck at ~25% opacity and
+  // was invisible on vibrant backgrounds).
+  const contentTop = Math.max(0, taglineY - Math.round(base * 0.15));
+  const gradPct = Math.max(5, Math.min(85, Math.round((contentTop / height) * 100)));
 
   const headlineTspans = headlineLines.map((line, i) =>
     `<tspan x="${centerX}" dy="${i === 0 ? 0 : Math.round(headlineSize * 1.05)}">${escapeXml(line)}</tspan>`
@@ -395,13 +431,28 @@ function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, web
     `<tspan x="${centerX}" dy="${i === 0 ? 0 : Math.round(subtextSize * 1.35)}">${escapeXml(line)}</tspan>`
   ).join('');
 
+  // Text colors follow the same logic as the logo: on dark bg (white logo) use light text,
+  // on light bg (dark logo) use dark text. The gradient overlay is itself reversed
+  // depending on logo color so text always sits on an appropriate backdrop.
+  // For the tagline we use a brighter/deeper teal (not teal400) to guarantee contrast
+  // even when the background itself contains teal tones.
+  const headlineFill = logoIsWhite ? '#FFFFFF' : TLB_BRAND.dark900;
+  const subtextFill  = logoIsWhite ? '#EAF0F7' : TLB_BRAND.slate700;
+  const metaFill     = logoIsWhite ? '#FFFFFF' : TLB_BRAND.dark800;
+  const taglineFill  = logoIsWhite ? TLB_BRAND.teal200 : TLB_BRAND.teal700;
+
+  const gradStopColor = logoIsWhite ? TLB_BRAND.dark900 : '#FFFFFF';
+  // Stronger mid-stop so the tagline reads even on vibrant/colorful backgrounds.
+  const gradMidOpacity = logoIsWhite ? 0.55 : 0.55;
+  const gradEndOpacity = logoIsWhite ? 0.94 : 0.94;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
     <linearGradient id="readGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0A1628" stop-opacity="0"/>
-      <stop offset="${gradPct}%" stop-color="#0A1628" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#0A1628" stop-opacity="0.9"/>
+      <stop offset="0%"   stop-color="${gradStopColor}" stop-opacity="0"/>
+      <stop offset="${gradPct}%" stop-color="${gradStopColor}" stop-opacity="${gradMidOpacity}"/>
+      <stop offset="100%" stop-color="${gradStopColor}" stop-opacity="${gradEndOpacity}"/>
     </linearGradient>
   </defs>
 
@@ -412,7 +463,7 @@ function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, web
         font-family="${fontFamily}"
         font-size="${taglineSize}"
         font-weight="500"
-        fill="${TLB_BRAND.teal}"
+        fill="${taglineFill}"
         text-anchor="middle"
         letter-spacing="3">${escapeXml(tagline.toUpperCase())}</text>
   ` : ''}
@@ -421,7 +472,7 @@ function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, web
         font-family="${fontFamily}"
         font-size="${headlineSize}"
         font-weight="700"
-        fill="#FFFFFF"
+        fill="${headlineFill}"
         text-anchor="middle"
         letter-spacing="-0.5">${headlineTspans}</text>
 
@@ -429,23 +480,42 @@ function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, web
         font-family="${fontFamily}"
         font-size="${subtextSize}"
         font-weight="400"
-        fill="#EAF0F7"
+        fill="${subtextFill}"
         text-anchor="middle">${subtextTspans}</text>
 
-  <rect x="${pillX}" y="${pillTop}" width="${pillWidth}" height="${pillHeight}"
-        rx="${Math.round(pillHeight * 0.22)}"
-        fill="${TLB_BRAND.cream}"
-        fill-opacity="0.98"/>
-
   <text x="${centerX}" y="${metaY}"
-        font-family="Noto Sans, DM Sans, sans-serif"
+        font-family="${fontFamily}"
         font-size="${metaSize}"
         font-weight="500"
-        fill="#FFFFFF"
+        fill="${metaFill}"
         fill-opacity="0.88"
         text-anchor="middle"
         letter-spacing="1.2">${escapeXml(website)}   •   ${escapeXml(phone)}</text>
 </svg>`;
+}
+
+// Rasterise an SVG logo file to a PNG buffer at a target width, preserving aspect.
+async function rasterizeLogo(logoPath, targetWidth) {
+  return await sharp(logoPath, { density: 600 })
+    .resize({ width: targetWidth, fit: 'inside' })
+    .png()
+    .toBuffer();
+}
+
+// Sample the average brightness of a region in an image buffer.
+// Returns luminance 0..255 (Rec. 709 weights).
+async function sampleLuminance(buffer, { left, top, width, height }) {
+  const stats = await sharp(buffer)
+    .extract({
+      left: Math.max(0, left),
+      top: Math.max(0, top),
+      width: Math.max(1, width),
+      height: Math.max(1, height)
+    })
+    .stats();
+  const ch = stats.channels;
+  // sharp stats gives R, G, B (and A) channels with .mean in 0..255
+  return 0.2126 * ch[0].mean + 0.7152 * ch[1].mean + 0.0722 * ch[2].mean;
 }
 
 // ==================== MAIN POSTER BUILDER ====================
@@ -472,25 +542,32 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
   // 2. Background image from Gemini
   const bgBuffer = await generateBackgroundImage({ occasion, customPrompt, backgroundStyle, size });
 
-  // 3. Resize background to exact poster size (cover fit)
+  // 3. Resize background to exact poster size
   const bgResized = await sharp(bgBuffer)
     .resize(width, height, { fit: 'cover', position: 'center' })
     .toBuffer();
 
-  // 4. Prepare logo: scale to target size and place on cream pill
-  const logoTargetWidth = Math.round(width * 0.28);
-  const logoBuffer = await sharp(LOGO_PATH)
-    .resize({ width: logoTargetWidth, fit: 'inside' })
-    .toBuffer();
-  const logoMeta = await sharp(logoBuffer).metadata();
+  // 4. Compute shared layout (needed for both sampling and rendering)
+  const layout = computePosterLayout({ width, height });
 
-  // Pill dimensions (logo + padding)
-  const pillPadX = Math.round(logoMeta.width * 0.12);
-  const pillPadY = Math.round(logoMeta.height * 0.28);
-  const pillWidth = logoMeta.width + pillPadX * 2;
-  const pillHeight = logoMeta.height + pillPadY * 2;
+  // 5. Decide logo variant based on raw bg luminance at the logo region.
+  //    (We sample the raw bg, not the gradient-applied version, because the
+  //    gradient direction itself depends on the choice we are trying to make.)
+  const rawLuma = await sampleLuminance(bgResized, {
+    left: layout.logoLeft,
+    top: layout.logoTop,
+    width: layout.logoWidth,
+    height: layout.logoHeight
+  });
+  // Bg is considered "light" if clearly bright. We skew slightly toward using
+  // the white logo because our gradient darkens ambiguous regions.
+  const useWhiteLogo = rawLuma < 170;
 
-  // 5. Build SVG overlay (includes gradient, text, pill shape, website/phone line)
+  // 6. Rasterise the chosen logo at the target pixel width
+  const logoPath = useWhiteLogo ? LOGO_WHITE_PATH : LOGO_DARK_PATH;
+  const logoBuffer = await rasterizeLogo(logoPath, layout.logoWidth);
+
+  // 7. Build the overlay SVG (gradient + text + meta line).
   const overlaySvg = buildOverlaySvg({
     width, height,
     headline: copy.headline,
@@ -499,24 +576,15 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     phone: TLB_PHONE,
     website: TLB_WEBSITE,
     fontFamily: lang.font,
-    logoPillRect: { width: pillWidth, height: pillHeight }
+    layout,
+    logoIsWhite: useWhiteLogo
   });
 
-  // Compute logo position (inside the pill, centered)
-  const metaSize = Math.round(Math.min(width, height) * 0.025);
-  const padBottom = Math.round(height * 0.055);
-  const metaY = height - padBottom;
-  const pillGapBelow = Math.round(Math.min(width, height) * 0.022);
-  const pillBottom = metaY - metaSize - pillGapBelow;
-  const pillTop = pillBottom - pillHeight;
-  const logoTop = pillTop + pillPadY;
-  const logoLeft = Math.round((width - logoMeta.width) / 2);
-
-  // 6. Final composite
+  // 8. Final composite: bg -> overlay -> logo
   const finalBuffer = await sharp(bgResized)
     .composite([
       { input: Buffer.from(overlaySvg), top: 0, left: 0 },
-      { input: logoBuffer, top: logoTop, left: logoLeft }
+      { input: logoBuffer, top: layout.logoTop, left: layout.logoLeft }
     ])
     .png({ quality: 95, compressionLevel: 8 })
     .toBuffer();
@@ -525,7 +593,8 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     buffer: finalBuffer,
     copy,
     size: sizeCfg,
-    mimeType: 'image/png'
+    mimeType: 'image/png',
+    logoVariant: useWhiteLogo ? 'white' : 'dark'
   };
 }
 

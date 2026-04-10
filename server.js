@@ -768,6 +768,15 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
       tagline: req.body.tagline ?? poster.tagline
     };
 
+    // Legacy: older posters used background_style='colorful' as a palette hint.
+    // The modern model drops that style and lets the user brief drive palette,
+    // so translate it on the fly for any legacy row regenerated from scratch.
+    if (opts.backgroundStyle === 'colorful') {
+      opts.backgroundStyle = 'graphics';
+      const hint = 'vibrant saturated festive colours, rich editorial palette';
+      opts.customPrompt = opts.customPrompt ? `${opts.customPrompt}. ${hint}` : hint;
+    }
+
     const result = await posterGenerator.generatePoster(opts);
 
     // Remove old file
