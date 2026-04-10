@@ -263,7 +263,7 @@ ${langInstruction}
 
 Return ONLY a valid JSON object (no markdown fences, no explanation) with these exact keys:
 {
-  "headline": "Main bold line, 2-4 words MAX, eye-catching",
+  "headline": "Main bold line, a COMPLETE standalone phrase of 2 to 5 words",
   "subtext": "Supporting message, 8-14 words, warm and grounded",
   "tagline": "Short brand line, 3-5 words"
 }
@@ -271,7 +271,8 @@ Return ONLY a valid JSON object (no markdown fences, no explanation) with these 
 Rules:
 - Do NOT use em dashes or en dashes anywhere. Use commas or periods.
 - Keep everything concise, confident, respectful
-- Headline must be SHORT and impactful (max 4 words)
+- Headline MUST be a complete, standalone phrase that reads as a full thought on its own. Never a dangling fragment. Examples: "Secure Your Land" ✓, "Land, Truly Protected" ✓, "Your Land, Our Priority" ✓. BAD: "Secure Your" ✗, "Your Land," ✗, "Protect Your" ✗.
+- Headline can be 2 to 5 words. Prefer 3 to 4 for punch, but never cut a sentence short just to fit 2 words.
 - For festivals, warm and celebratory but never over the top
 - For land/business themes, trustworthy and plain-spoken, never salesy
 - Never use cliches like "unlock", "revolutionise", "game changer"
