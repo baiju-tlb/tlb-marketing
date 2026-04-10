@@ -684,8 +684,11 @@ app.get('/api/stats', (req, res) => {
 
 // ==================== POSTERS ====================
 
-const POSTERS_DIR = path.join(__dirname, 'public', 'posters');
+// Use env var for persistent disk on Render; fallback to public/posters locally
+const POSTERS_DIR = process.env.POSTERS_DIR || path.join(__dirname, 'public', 'posters');
 fs.mkdirSync(POSTERS_DIR, { recursive: true });
+// Serve posters from the actual directory (which may be outside public/ in prod)
+app.use('/posters', express.static(POSTERS_DIR));
 
 app.get('/api/poster-options', (req, res) => {
   res.json({
@@ -769,8 +772,8 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
 
     // Remove old file
     if (poster.image_url) {
-      const oldPath = path.join(__dirname, 'public', poster.image_url.replace(/^\//, ''));
-      try { fs.unlinkSync(oldPath); } catch {}
+      const oldName = path.basename(poster.image_url);
+      try { fs.unlinkSync(path.join(POSTERS_DIR, oldName)); } catch {}
     }
 
     const filename = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
@@ -803,8 +806,8 @@ app.delete('/api/posters/:id', (req, res) => {
   const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
   if (!poster) return res.status(404).json({ error: 'Poster not found' });
   if (poster.image_url) {
-    const filePath = path.join(__dirname, 'public', poster.image_url.replace(/^\//, ''));
-    try { fs.unlinkSync(filePath); } catch {}
+    const name = path.basename(poster.image_url);
+    try { fs.unlinkSync(path.join(POSTERS_DIR, name)); } catch {}
   }
   db.prepare('DELETE FROM posters WHERE id = ?').run(req.params.id);
   res.json({ success: true });

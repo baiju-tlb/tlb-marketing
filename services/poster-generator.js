@@ -1,5 +1,37 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const path = require('path');
+const fs = require('fs');
+
+// Setup fontconfig so libvips/librsvg finds our bundled Noto fonts on any
+// platform (Linux deploys in particular). This MUST run before sharp loads.
+(function setupFontconfig() {
+  try {
+    const fontsDir = path.join(__dirname, '..', 'assets', 'fonts');
+    if (!fs.existsSync(fontsDir)) return;
+    const confDir = path.join(__dirname, '..', 'assets', 'fontconfig');
+    fs.mkdirSync(confDir, { recursive: true });
+    const cacheDir = path.join(require('os').tmpdir(), 'fontconfig-cache-tlb');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    const confPath = path.join(confDir, 'fonts.conf');
+    fs.writeFileSync(confPath, `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir>${fontsDir}</dir>
+  <dir>/usr/share/fonts</dir>
+  <dir>/usr/local/share/fonts</dir>
+  <dir>/System/Library/Fonts</dir>
+  <dir>/System/Library/Fonts/Supplemental</dir>
+  <dir prefix="xdg">fonts</dir>
+  <cachedir>${cacheDir}</cachedir>
+  <config></config>
+</fontconfig>`);
+    process.env.FONTCONFIG_PATH = confDir;
+    process.env.FONTCONFIG_FILE = confPath;
+  } catch (e) {
+    console.warn('[poster] fontconfig setup failed:', e.message);
+  }
+})();
+
 const sharp = require('sharp');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;

@@ -15,6 +15,8 @@ services:
         value: production
       - key: DB_PATH
         value: /var/data/marketing.db
+      - key: POSTERS_DIR
+        value: /var/data/posters
       - key: PORT
         value: 3001
       - key: GEMINI_API_KEY
