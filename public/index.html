@@ -729,7 +729,7 @@
         <button onclick="closeModal('modal-poster')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <div class="space-y-4">
+      <div id="poster-form-body" class="space-y-4">
         <!-- Occasion -->
         <div>
           <label class="block text-sm text-gray-500 mb-1">Occasion / Concept</label>
@@ -805,7 +805,38 @@
         </div>
       </div>
 
-      <div class="flex justify-end gap-3 mt-5">
+      <!-- Generating state (shown while the poster is being created) -->
+      <div id="poster-generating" class="hidden text-center py-6">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-brand-50 mb-4 relative">
+          <div class="absolute inset-0 rounded-full border-4 border-brand-100"></div>
+          <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
+          <i data-lucide="sparkles" class="w-7 h-7 text-brand-600"></i>
+        </div>
+        <h4 class="text-lg font-semibold text-gray-800">Generating your poster</h4>
+        <p class="text-sm text-gray-500 mt-1 mb-5">Crafting copy, painting the background, and composing the final image. This usually takes 20 to 40 seconds.</p>
+
+        <!-- Progress dots -->
+        <div class="flex items-center justify-center gap-1.5 mb-6">
+          <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+          <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse" style="animation-delay: 0.2s"></span>
+          <span class="w-2 h-2 rounded-full bg-brand-300 animate-pulse" style="animation-delay: 0.4s"></span>
+        </div>
+
+        <!-- Rotating "Did you know" marketing tip -->
+        <div class="bg-gradient-to-br from-brand-50 via-white to-teal-50 border border-brand-100 rounded-xl p-5 text-left shadow-sm">
+          <div class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="lightbulb" class="w-4 h-4 text-brand-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-[11px] uppercase tracking-wider text-brand-600 font-semibold mb-1">Did you know?</p>
+              <p id="poster-tip" class="text-sm text-gray-700 leading-relaxed transition-opacity duration-300">&nbsp;</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="poster-form-footer" class="flex justify-end gap-3 mt-5">
         <button onclick="closeModal('modal-poster')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
         <button onclick="submitPosterGenerate()" id="btn-poster-generate" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
           <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Poster

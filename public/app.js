@@ -1377,6 +1377,74 @@ function closeSidebarMobile() {
 let posterOptions = null;
 let posterSelectedBgStyle = 'graphics';
 let currentPreviewPoster = null;
+let posterTipTimer = null;
+
+// Rotating "Did you know?" marketing tips shown while a poster is generating.
+// Mix of land/property stats, social media best practices, and TLB product hints.
+const POSTER_TIPS = [
+  'Short headlines (2 to 4 words) are remembered about 5x better than long ones.',
+  'Festive creatives posted 2 to 3 days before the festival outperform day-of posts by nearly 2x.',
+  'Posts featuring real human faces tend to get ~38% more engagement on Instagram and Facebook.',
+  'Square (1:1) posts consistently outperform landscape posts on Instagram feeds.',
+  'The best windows for real-estate content on LinkedIn are Tuesday and Wednesday mornings (10 to 11 AM IST).',
+  'Over 65% of land disputes in India stem from unclear or missing documentation.',
+  'Trust signals like "verified", "registered" and "certified" can nearly double click-through rates on land ads.',
+  'More than 40% of property searches on mobile happen after 8 PM.',
+  'Kerala and Karnataka lead India in digital land-record adoption.',
+  'Every TLB poster auto-picks the dark or white logo based on how bright the background is.',
+  'Pro tip: use the "Your idea / brief" field to push colours or mood, e.g. "warm golden hour".',
+  'Gemini generates a fresh background image each time, so no two posters are ever identical.',
+  'Auto layout mode quietly rotates between 4 distinct templates so your feed never looks templated.',
+  'TLB brand teal (#30B0A4) is tuned for maximum readability on warm, cinematic backgrounds.',
+  'Consistency beats frequency: one on-brand poster a day beats five noisy ones a week.'
+];
+
+function showPosterGenerating() {
+  const body = document.getElementById('poster-form-body');
+  const footer = document.getElementById('poster-form-footer');
+  const gen = document.getElementById('poster-generating');
+  if (!body || !gen || !footer) return;
+  body.classList.add('hidden');
+  footer.classList.add('hidden');
+  gen.classList.remove('hidden');
+  startPosterTipRotation();
+  if (window.lucide) lucide.createIcons();
+}
+
+function hidePosterGenerating() {
+  const body = document.getElementById('poster-form-body');
+  const footer = document.getElementById('poster-form-footer');
+  const gen = document.getElementById('poster-generating');
+  stopPosterTipRotation();
+  if (!body || !gen || !footer) return;
+  gen.classList.add('hidden');
+  body.classList.remove('hidden');
+  footer.classList.remove('hidden');
+}
+
+function startPosterTipRotation() {
+  const tipEl = document.getElementById('poster-tip');
+  if (!tipEl) return;
+  let i = Math.floor(Math.random() * POSTER_TIPS.length);
+  tipEl.textContent = POSTER_TIPS[i];
+  tipEl.style.opacity = '1';
+  stopPosterTipRotation();
+  posterTipTimer = setInterval(() => {
+    tipEl.style.opacity = '0';
+    setTimeout(() => {
+      i = (i + 1) % POSTER_TIPS.length;
+      tipEl.textContent = POSTER_TIPS[i];
+      tipEl.style.opacity = '1';
+    }, 300);
+  }, 5000);
+}
+
+function stopPosterTipRotation() {
+  if (posterTipTimer) {
+    clearInterval(posterTipTimer);
+    posterTipTimer = null;
+  }
+}
 
 async function loadPosterOptions() {
   if (posterOptions) return posterOptions;
@@ -1438,6 +1506,8 @@ function renderPosters(posters) {
 
 async function openPosterModal() {
   await loadPosterOptions();
+  // Ensure the generating overlay is reset in case the previous attempt errored
+  hidePosterGenerating();
 
   // Occasions
   const occSel = document.getElementById('poster-occasion');
@@ -1498,7 +1568,6 @@ function selectPosterBgStyle(value) {
 }
 
 async function submitPosterGenerate() {
-  const btn = document.getElementById('btn-poster-generate');
   const body = {
     occasion: document.getElementById('poster-occasion').value,
     customPrompt: document.getElementById('poster-prompt').value.trim(),
@@ -1511,23 +1580,19 @@ async function submitPosterGenerate() {
     tagline: document.getElementById('poster-tagline').value.trim()
   };
 
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Generating...';
-  showToast('Generating poster... this may take 20-40s', 'info');
+  showPosterGenerating();
 
   try {
     const result = await api('/api/posters/generate', { method: 'POST', body });
     if (result.error) throw new Error(result.error);
+    hidePosterGenerating();
     closeModal('modal-poster');
     showToast('Poster created!', 'success');
     loadPosters();
     openPosterPreview(result.poster.id, result.poster);
   } catch (err) {
+    hidePosterGenerating();
     showToast(err.message || 'Failed to generate poster', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Generate Poster';
-    lucide.createIcons();
   }
 }
 
