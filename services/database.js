@@ -108,6 +108,18 @@ db.exec(`
   );
 `);
 
+// ---- Lightweight migrations ----
+// Add new columns on existing databases. Each ALTER is wrapped in try/catch
+// because better-sqlite3 throws if the column already exists.
+function addColumnIfMissing(table, column, definition) {
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message)) throw e;
+  }
+}
+addColumnIfMissing('posters', 'template', 'TEXT');
+
 // Insert default settings
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 insertSetting.run('post_frequency', '3');

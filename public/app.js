@@ -1451,10 +1451,16 @@ async function openPosterModal() {
   const langSel = document.getElementById('poster-language');
   langSel.innerHTML = posterOptions.languages.map(l => `<option value="${l.value}">${l.label}</option>`).join('');
 
+  // Layouts
+  const layoutSel = document.getElementById('poster-layout');
+  const layouts = posterOptions.layouts || [{ value: 'auto', label: 'Auto / Surprise me' }];
+  layoutSel.innerHTML = layouts.map(l => `<option value="${l.value}">${l.label}</option>`).join('');
+
   // Default selections
   occSel.value = 'land_promo';
   sizeSel.value = 'square';
   langSel.value = 'english';
+  layoutSel.value = 'auto';
 
   // Background style grid
   const bgGrid = document.getElementById('poster-bg-grid');
@@ -1499,6 +1505,7 @@ async function submitPosterGenerate() {
     backgroundStyle: posterSelectedBgStyle,
     size: document.getElementById('poster-size').value,
     language: document.getElementById('poster-language').value,
+    template: document.getElementById('poster-layout').value || 'auto',
     headline: document.getElementById('poster-headline').value.trim(),
     subtext: document.getElementById('poster-subtext').value.trim(),
     tagline: document.getElementById('poster-tagline').value.trim()

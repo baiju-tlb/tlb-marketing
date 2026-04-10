@@ -361,12 +361,21 @@ function wrapTextLines(text, maxChars) {
 }
 
 // ==================== LAYOUT TEMPLATES ====================
-// Four distinct layouts so every regenerate gives a visually different poster.
+// Four distinct layouts so every regenerate can give a visually different poster.
 // - center-classic: centered stack (tagline / headline / sub / logo), bottom-weighted
 // - bottom-left:    editorial, all text anchored bottom-left, logo bottom-right
 // - top-hero:       big headline near the top, subtext + logo at the bottom
 // - minimal-center: just a big headline mid-frame, small sub, tiny logo, no tagline
 const LAYOUT_TEMPLATES = ['center-classic', 'bottom-left', 'top-hero', 'minimal-center'];
+
+// Public metadata for the UI. "auto" means pick randomly per generation.
+const LAYOUTS = [
+  { value: 'auto',            label: 'Auto / Surprise me' },
+  { value: 'center-classic',  label: 'Center Classic' },
+  { value: 'bottom-left',     label: 'Bottom-Left Editorial' },
+  { value: 'top-hero',        label: 'Top Hero' },
+  { value: 'minimal-center',  label: 'Minimal Center' }
+];
 
 function pickRandomTemplate(exclude) {
   const pool = LAYOUT_TEMPLATES.filter(t => t !== exclude);
@@ -865,6 +874,6 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
 }
 
 module.exports = {
-  OCCASIONS, LANGUAGES, SIZES, BG_STYLES, TLB_BRAND,
+  OCCASIONS, LANGUAGES, SIZES, BG_STYLES, LAYOUTS, LAYOUT_TEMPLATES, TLB_BRAND,
   generatePoster, generatePosterCopy, generateBackgroundImage
 };

@@ -695,7 +695,8 @@ app.get('/api/poster-options', (req, res) => {
     occasions: Object.entries(posterGenerator.OCCASIONS).map(([key, val]) => ({ value: key, label: val.label })),
     languages: Object.entries(posterGenerator.LANGUAGES).map(([key, val]) => ({ value: key, label: val.label })),
     sizes: Object.entries(posterGenerator.SIZES).map(([key, val]) => ({ value: key, label: val.label, width: val.width, height: val.height })),
-    backgroundStyles: Object.entries(posterGenerator.BG_STYLES).map(([key, val]) => ({ value: key, label: val.label }))
+    backgroundStyles: Object.entries(posterGenerator.BG_STYLES).map(([key, val]) => ({ value: key, label: val.label })),
+    layouts: posterGenerator.LAYOUTS
   });
 });
 
@@ -713,11 +714,16 @@ app.get('/api/posters/:id', (req, res) => {
 });
 
 app.post('/api/posters/generate', async (req, res) => {
-  const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline } = req.body;
+  const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template } = req.body;
+
+  // Store the user's *intent* (e.g. 'auto' or 'top-hero') so that a poster
+  // generated with Auto re-randomises on regenerate while a locked one stays
+  // locked. The resolved template is returned in the response for debugging.
+  const templateIntent = template || 'auto';
 
   try {
     const result = await posterGenerator.generatePoster({
-      occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline
+      occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template: templateIntent
     });
 
     // Save to disk
@@ -727,8 +733,8 @@ app.post('/api/posters/generate', async (req, res) => {
     const imageUrl = `/posters/${filename}`;
 
     const info = db.prepare(`
-      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height, template)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       occasion || 'custom',
       customPrompt || '',
@@ -740,7 +746,8 @@ app.post('/api/posters/generate', async (req, res) => {
       result.copy.tagline,
       imageUrl,
       result.size.width,
-      result.size.height
+      result.size.height,
+      templateIntent
     );
 
     const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(info.lastInsertRowid);
@@ -756,7 +763,10 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
   if (!poster) return res.status(404).json({ error: 'Poster not found' });
 
   try {
-    // Use overrides from body if provided, else fall back to stored values
+    // Use overrides from body if provided, else fall back to stored values.
+    // For `template` specifically, callers can pass 'auto' to force a new
+    // random pick on regenerate even if the poster was previously saved with
+    // a specific template.
     const opts = {
       occasion: req.body.occasion ?? poster.occasion,
       customPrompt: req.body.customPrompt ?? poster.custom_prompt,
@@ -765,7 +775,8 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
       language: req.body.language ?? poster.language,
       headline: req.body.headline ?? poster.headline,
       subtext: req.body.subtext ?? poster.subtext,
-      tagline: req.body.tagline ?? poster.tagline
+      tagline: req.body.tagline ?? poster.tagline,
+      template: req.body.template ?? poster.template
     };
 
     // Legacy: older posters used background_style='colorful' as a palette hint.
@@ -794,13 +805,13 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
       UPDATE posters SET
         occasion = ?, custom_prompt = ?, background_style = ?, size = ?, language = ?,
         headline = ?, subtext = ?, tagline = ?, image_url = ?, width = ?, height = ?,
-        updated_at = datetime('now')
+        template = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
       opts.occasion, opts.customPrompt, opts.backgroundStyle, opts.size, opts.language,
       result.copy.headline, result.copy.subtext, result.copy.tagline,
       imageUrl, result.size.width, result.size.height,
-      poster.id
+      opts.template || 'auto', poster.id
     );
 
     const updated = db.prepare('SELECT * FROM posters WHERE id = ?').get(poster.id);
