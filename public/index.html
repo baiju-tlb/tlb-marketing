@@ -57,6 +57,10 @@
           <i data-lucide="book-open" class="w-4 h-4"></i> Articles
           <span id="nav-articles-badge" class="ml-auto text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full hidden">0</span>
         </a>
+        <a onclick="navigate('posters'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="posters">
+          <i data-lucide="image" class="w-4 h-4"></i> Posters
+          <span class="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-pink-500 to-orange-500 text-white tracking-wide shadow-sm">NEW</span>
+        </a>
         <a onclick="navigate('calendar'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="calendar">
           <i data-lucide="calendar" class="w-4 h-4"></i> Calendar
         </a>
@@ -207,6 +211,25 @@
         <div id="posts-list" class="space-y-4">
           <div class="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">
             No posts yet. Go to News Feed and generate posts from articles.
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== POSTERS PAGE ========== -->
+      <div id="page-posters" class="page p-4 sm:p-6 lg:p-8 hidden">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">Posters</h2>
+            <p class="text-sm text-gray-400 mt-1">Branded posters for Instagram, Facebook, LinkedIn & more</p>
+          </div>
+          <button onclick="openPosterModal()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+            <i data-lucide="plus" class="w-4 h-4"></i> Create Poster
+          </button>
+        </div>
+
+        <div id="posters-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div class="col-span-full bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
+            No posters yet. Click "Create Poster" to design your first one.
           </div>
         </div>
       </div>
@@ -693,6 +716,113 @@
         <button onclick="closeModal('modal-publish-article')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
         <button onclick="confirmPublishArticle()" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2">
           <i data-lucide="external-link" class="w-4 h-4"></i> Copy & Open LinkedIn Editor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Poster Modal -->
+  <div id="modal-poster" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl w-[640px] max-w-[95vw] max-h-[92vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Create Poster</h3>
+        <button onclick="closeModal('modal-poster')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Occasion -->
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">Occasion / Concept</label>
+          <select id="poster-occasion" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+
+        <!-- Custom prompt / brief -->
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">Your idea / brief <span class="text-gray-300 font-normal">(optional)</span></label>
+          <textarea id="poster-prompt" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm leading-relaxed" placeholder="e.g., Celebrate new beginnings with secure land ownership. Focus on warmth and family."></textarea>
+          <p class="text-xs text-gray-400 mt-1">Leave blank to let AI craft copy based on the occasion.</p>
+        </div>
+
+        <!-- Size + Language -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-gray-500 mb-1">Size</label>
+            <select id="poster-size" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-500 mb-1">Language</label>
+            <select id="poster-language" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Background style -->
+        <div>
+          <label class="block text-sm text-gray-500 mb-2">Background Style</label>
+          <div id="poster-bg-grid" class="grid grid-cols-3 gap-2">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Optional overrides -->
+        <details class="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2">
+          <summary class="text-sm text-gray-600 cursor-pointer py-1">Advanced: override copy (optional)</summary>
+          <div class="space-y-3 mt-3 mb-1">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Headline</label>
+              <input type="text" id="poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Short, bold line (auto if empty)">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Subtext</label>
+              <input type="text" id="poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Supporting line (auto if empty)">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Tagline</label>
+              <input type="text" id="poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Small line above headline (auto if empty)">
+            </div>
+          </div>
+        </details>
+
+        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+          <p class="text-xs text-blue-700 flex items-start gap-2">
+            <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+            Your poster will include the TLB logo, website, phone number, and brand colors automatically. Generation takes 20-40 seconds.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-5">
+        <button onclick="closeModal('modal-poster')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+        <button onclick="submitPosterGenerate()" id="btn-poster-generate" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Poster
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Poster Preview Modal -->
+  <div id="modal-poster-preview" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-2xl w-[720px] max-w-[95vw] max-h-[92vh] overflow-y-auto p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-semibold text-gray-800">Poster Preview</h3>
+        <button onclick="closeModal('modal-poster-preview')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="bg-gray-100 rounded-xl p-4 flex items-center justify-center mb-4">
+        <img id="poster-preview-img" class="max-h-[60vh] max-w-full rounded-lg shadow-md" />
+      </div>
+      <div class="text-sm text-gray-600 mb-4" id="poster-preview-meta"></div>
+      <div class="flex justify-end gap-3 flex-wrap">
+        <button onclick="closeModal('modal-poster-preview')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
+        <button onclick="regenerateCurrentPoster()" id="btn-poster-regen" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i> Regenerate
+        </button>
+        <button onclick="downloadCurrentPoster()" class="flex items-center gap-2 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+          <i data-lucide="download" class="w-4 h-4"></i> Download
         </button>
       </div>
     </div>

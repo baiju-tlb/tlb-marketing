@@ -28,6 +28,7 @@ function navigate(page) {
   if (page === 'news') loadArticles();
   if (page === 'posts') loadPosts();
   if (page === 'write-article') loadLinkedinArticles();
+  if (page === 'posters') loadPosters();
   if (page === 'calendar') loadCalendar();
   if (page === 'settings') loadSettings();
 
@@ -1369,6 +1370,249 @@ function closeSidebarMobile() {
     const overlay = document.getElementById('sidebar-overlay');
     sidebar.classList.add('-translate-x-full');
     overlay.classList.add('hidden');
+  }
+}
+
+// ==================== POSTERS ====================
+let posterOptions = null;
+let posterSelectedBgStyle = 'graphics';
+let currentPreviewPoster = null;
+
+async function loadPosterOptions() {
+  if (posterOptions) return posterOptions;
+  posterOptions = await api('/api/poster-options');
+  return posterOptions;
+}
+
+async function loadPosters() {
+  await loadPosterOptions();
+  const { posters } = await api('/api/posters?limit=60');
+  renderPosters(posters);
+  lucide.createIcons();
+}
+
+function renderPosters(posters) {
+  const grid = document.getElementById('posters-grid');
+  if (!posters.length) {
+    grid.innerHTML = '<div class="col-span-full bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">No posters yet. Click "Create Poster" to design your first one.</div>';
+    return;
+  }
+  grid.innerHTML = posters.map(p => {
+    const occasionLabel = (posterOptions?.occasions.find(o => o.value === p.occasion)?.label) || p.occasion || '';
+    const sizeLabel = (posterOptions?.sizes.find(s => s.value === p.size)?.label) || p.size || '';
+    const langLabel = (posterOptions?.languages.find(l => l.value === p.language)?.label) || p.language || '';
+    return `
+    <div class="bg-white rounded-xl border border-gray-100 overflow-hidden group">
+      <div class="bg-gray-100 relative cursor-pointer" onclick="openPosterPreview(${p.id})">
+        <img src="${p.image_url}" class="w-full h-56 object-cover" />
+        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <span class="text-white text-xs font-medium flex items-center gap-1.5"><i data-lucide="eye" class="w-4 h-4"></i> View</span>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-brand-50 text-brand-600 uppercase tracking-wide">${escHtml(occasionLabel)}</span>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">${escHtml(sizeLabel)}</span>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">${escHtml(langLabel)}</span>
+        </div>
+        <p class="text-sm font-medium text-gray-800 leading-snug truncate">${escHtml(p.headline || '—')}</p>
+        <p class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(p.subtext || '')}</p>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+          <span class="text-xs text-gray-300">${timeAgo(p.created_at)}</span>
+          <div class="flex gap-1">
+            <button onclick="downloadPoster(${p.id})" title="Download" class="text-gray-400 hover:text-gray-700 p-1.5 rounded hover:bg-gray-50 transition">
+              <i data-lucide="download" class="w-4 h-4"></i>
+            </button>
+            <button onclick="regeneratePoster(${p.id})" title="Regenerate" class="text-gray-400 hover:text-gray-700 p-1.5 rounded hover:bg-gray-50 transition">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+            <button onclick="deletePoster(${p.id})" title="Delete" class="text-gray-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openPosterModal() {
+  await loadPosterOptions();
+
+  // Occasions
+  const occSel = document.getElementById('poster-occasion');
+  occSel.innerHTML = posterOptions.occasions.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+
+  // Sizes
+  const sizeSel = document.getElementById('poster-size');
+  sizeSel.innerHTML = posterOptions.sizes.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+
+  // Languages
+  const langSel = document.getElementById('poster-language');
+  langSel.innerHTML = posterOptions.languages.map(l => `<option value="${l.value}">${l.label}</option>`).join('');
+
+  // Default selections
+  occSel.value = 'land_promo';
+  sizeSel.value = 'square';
+  langSel.value = 'english';
+
+  // Background style grid
+  const bgGrid = document.getElementById('poster-bg-grid');
+  const styleIcons = { plain: '◻︎', graphics: '✦', people: '☺' };
+  bgGrid.innerHTML = posterOptions.backgroundStyles.map(s => `
+    <button type="button" onclick="selectPosterBgStyle('${s.value}')"
+      class="poster-bg-btn px-3 py-3 rounded-lg border-2 text-xs font-medium text-gray-700 text-center transition
+      ${s.value === posterSelectedBgStyle ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}"
+      data-value="${s.value}">
+      <span class="block text-base mb-0.5">${styleIcons[s.value] || '◆'}</span>${s.label}
+    </button>
+  `).join('');
+
+  // Clear overrides
+  document.getElementById('poster-prompt').value = '';
+  document.getElementById('poster-headline').value = '';
+  document.getElementById('poster-subtext').value = '';
+  document.getElementById('poster-tagline').value = '';
+
+  document.getElementById('modal-poster').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function selectPosterBgStyle(value) {
+  posterSelectedBgStyle = value;
+  document.querySelectorAll('.poster-bg-btn').forEach(btn => {
+    if (btn.dataset.value === value) {
+      btn.classList.add('border-brand-500', 'bg-brand-50');
+      btn.classList.remove('border-gray-200', 'hover:border-gray-300');
+    } else {
+      btn.classList.remove('border-brand-500', 'bg-brand-50');
+      btn.classList.add('border-gray-200', 'hover:border-gray-300');
+    }
+  });
+}
+
+async function submitPosterGenerate() {
+  const btn = document.getElementById('btn-poster-generate');
+  const body = {
+    occasion: document.getElementById('poster-occasion').value,
+    customPrompt: document.getElementById('poster-prompt').value.trim(),
+    backgroundStyle: posterSelectedBgStyle,
+    size: document.getElementById('poster-size').value,
+    language: document.getElementById('poster-language').value,
+    headline: document.getElementById('poster-headline').value.trim(),
+    subtext: document.getElementById('poster-subtext').value.trim(),
+    tagline: document.getElementById('poster-tagline').value.trim()
+  };
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generating...';
+  showToast('Generating poster... this may take 20-40s', 'info');
+
+  try {
+    const result = await api('/api/posters/generate', { method: 'POST', body });
+    if (result.error) throw new Error(result.error);
+    closeModal('modal-poster');
+    showToast('Poster created!', 'success');
+    loadPosters();
+    openPosterPreview(result.poster.id, result.poster);
+  } catch (err) {
+    showToast(err.message || 'Failed to generate poster', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Generate Poster';
+    lucide.createIcons();
+  }
+}
+
+async function openPosterPreview(id, preloaded) {
+  const poster = preloaded || await api(`/api/posters/${id}`);
+  if (poster.error) return showToast(poster.error, 'error');
+  currentPreviewPoster = poster;
+  document.getElementById('poster-preview-img').src = poster.image_url;
+  const occasionLabel = (posterOptions?.occasions.find(o => o.value === poster.occasion)?.label) || poster.occasion;
+  const sizeLabel = (posterOptions?.sizes.find(s => s.value === poster.size)?.label) || poster.size;
+  const langLabel = (posterOptions?.languages.find(l => l.value === poster.language)?.label) || poster.language;
+  document.getElementById('poster-preview-meta').innerHTML = `
+    <div class="flex flex-wrap gap-2 mb-2">
+      <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-brand-50 text-brand-600">${escHtml(occasionLabel)}</span>
+      <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">${escHtml(sizeLabel)}</span>
+      <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">${escHtml(langLabel)}</span>
+      <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">${poster.width}×${poster.height}</span>
+    </div>
+    <p class="text-sm font-semibold text-gray-800">${escHtml(poster.headline || '')}</p>
+    <p class="text-xs text-gray-500 mt-1">${escHtml(poster.subtext || '')}</p>
+  `;
+  document.getElementById('modal-poster-preview').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+async function regenerateCurrentPoster() {
+  if (!currentPreviewPoster) return;
+  await regeneratePoster(currentPreviewPoster.id);
+}
+
+async function regeneratePoster(id) {
+  if (!confirm('Regenerate this poster with the same settings? A new background and copy will be created.')) return;
+  const btn = document.getElementById('btn-poster-regen');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Regenerating...'; }
+  showToast('Regenerating... 20-40s', 'info');
+  try {
+    // Only send empty headline/subtext/tagline so AI regenerates copy
+    const result = await api(`/api/posters/${id}/regenerate`, {
+      method: 'POST',
+      body: { headline: '', subtext: '', tagline: '' }
+    });
+    if (result.error) throw new Error(result.error);
+    showToast('Poster regenerated', 'success');
+    loadPosters();
+    if (currentPreviewPoster && currentPreviewPoster.id === id) {
+      openPosterPreview(id, result.poster);
+    }
+  } catch (err) {
+    showToast(err.message || 'Regenerate failed', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i> Regenerate'; }
+    lucide.createIcons();
+  }
+}
+
+async function deletePoster(id) {
+  if (!confirm('Delete this poster permanently?')) return;
+  try {
+    const result = await api(`/api/posters/${id}`, { method: 'DELETE' });
+    if (result.error) throw new Error(result.error);
+    showToast('Poster deleted', 'success');
+    loadPosters();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function downloadPoster(id) {
+  const poster = await api(`/api/posters/${id}`);
+  if (poster.error) return showToast(poster.error, 'error');
+  triggerImageDownload(poster.image_url, `tlb-poster-${id}.png`);
+}
+
+function downloadCurrentPoster() {
+  if (!currentPreviewPoster) return;
+  triggerImageDownload(currentPreviewPoster.image_url, `tlb-poster-${currentPreviewPoster.id}.png`);
+}
+
+async function triggerImageDownload(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    // Fallback: open in new tab
+    window.open(url, '_blank');
   }
 }
 

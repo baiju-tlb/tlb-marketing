@@ -70,6 +70,24 @@ db.exec(`
     last_login TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS posters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    occasion TEXT,
+    custom_prompt TEXT,
+    background_style TEXT,
+    size TEXT,
+    language TEXT,
+    headline TEXT,
+    subtext TEXT,
+    tagline TEXT,
+    image_url TEXT,
+    width INTEGER,
+    height INTEGER,
+    status TEXT DEFAULT 'ready',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS linkedin_articles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,

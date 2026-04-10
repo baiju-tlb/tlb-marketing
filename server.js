@@ -10,8 +10,10 @@ const cookieParser = require('cookie-parser');
 const db = require('./services/database');
 const { scrapeAll } = require('./services/news-scraper');
 const { generatePost, generateImagePrompt, generateImage, generateArticle, generateCoverImagePrompt, condenseArticleForPost, POST_TYPES, ARTICLE_TYPES } = require('./services/content-generator');
+const posterGenerator = require('./services/poster-generator');
 const linkedin = require('./services/linkedin');
 const { startScheduler } = require('./services/scheduler');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
@@ -678,6 +680,134 @@ app.get('/api/stats', (req, res) => {
   const publishedLinkedinArticles = db.prepare("SELECT COUNT(*) as c FROM linkedin_articles WHERE status = 'published'").get().c;
 
   res.json({ totalArticles, newArticles, totalPosts, drafts, approved, published, scheduled, totalLinkedinArticles, draftLinkedinArticles, publishedLinkedinArticles });
+});
+
+// ==================== POSTERS ====================
+
+const POSTERS_DIR = path.join(__dirname, 'public', 'posters');
+fs.mkdirSync(POSTERS_DIR, { recursive: true });
+
+app.get('/api/poster-options', (req, res) => {
+  res.json({
+    occasions: Object.entries(posterGenerator.OCCASIONS).map(([key, val]) => ({ value: key, label: val.label })),
+    languages: Object.entries(posterGenerator.LANGUAGES).map(([key, val]) => ({ value: key, label: val.label })),
+    sizes: Object.entries(posterGenerator.SIZES).map(([key, val]) => ({ value: key, label: val.label, width: val.width, height: val.height })),
+    backgroundStyles: Object.entries(posterGenerator.BG_STYLES).map(([key, val]) => ({ value: key, label: val.label }))
+  });
+});
+
+app.get('/api/posters', (req, res) => {
+  const { limit = 50, offset = 0 } = req.query;
+  const posters = db.prepare('SELECT * FROM posters ORDER BY created_at DESC LIMIT ? OFFSET ?').all(Number(limit), Number(offset));
+  const total = db.prepare('SELECT COUNT(*) as c FROM posters').get().c;
+  res.json({ posters, total });
+});
+
+app.get('/api/posters/:id', (req, res) => {
+  const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
+  if (!poster) return res.status(404).json({ error: 'Poster not found' });
+  res.json(poster);
+});
+
+app.post('/api/posters/generate', async (req, res) => {
+  const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline } = req.body;
+
+  try {
+    const result = await posterGenerator.generatePoster({
+      occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline
+    });
+
+    // Save to disk
+    const filename = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+    const filePath = path.join(POSTERS_DIR, filename);
+    fs.writeFileSync(filePath, result.buffer);
+    const imageUrl = `/posters/${filename}`;
+
+    const info = db.prepare(`
+      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      occasion || 'custom',
+      customPrompt || '',
+      backgroundStyle || 'graphics',
+      size || 'square',
+      language || 'english',
+      result.copy.headline,
+      result.copy.subtext,
+      result.copy.tagline,
+      imageUrl,
+      result.size.width,
+      result.size.height
+    );
+
+    const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(info.lastInsertRowid);
+    res.json({ success: true, poster });
+  } catch (err) {
+    console.error('Poster generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/posters/:id/regenerate', async (req, res) => {
+  const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
+  if (!poster) return res.status(404).json({ error: 'Poster not found' });
+
+  try {
+    // Use overrides from body if provided, else fall back to stored values
+    const opts = {
+      occasion: req.body.occasion ?? poster.occasion,
+      customPrompt: req.body.customPrompt ?? poster.custom_prompt,
+      backgroundStyle: req.body.backgroundStyle ?? poster.background_style,
+      size: req.body.size ?? poster.size,
+      language: req.body.language ?? poster.language,
+      headline: req.body.headline ?? poster.headline,
+      subtext: req.body.subtext ?? poster.subtext,
+      tagline: req.body.tagline ?? poster.tagline
+    };
+
+    const result = await posterGenerator.generatePoster(opts);
+
+    // Remove old file
+    if (poster.image_url) {
+      const oldPath = path.join(__dirname, 'public', poster.image_url.replace(/^\//, ''));
+      try { fs.unlinkSync(oldPath); } catch {}
+    }
+
+    const filename = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+    const filePath = path.join(POSTERS_DIR, filename);
+    fs.writeFileSync(filePath, result.buffer);
+    const imageUrl = `/posters/${filename}`;
+
+    db.prepare(`
+      UPDATE posters SET
+        occasion = ?, custom_prompt = ?, background_style = ?, size = ?, language = ?,
+        headline = ?, subtext = ?, tagline = ?, image_url = ?, width = ?, height = ?,
+        updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      opts.occasion, opts.customPrompt, opts.backgroundStyle, opts.size, opts.language,
+      result.copy.headline, result.copy.subtext, result.copy.tagline,
+      imageUrl, result.size.width, result.size.height,
+      poster.id
+    );
+
+    const updated = db.prepare('SELECT * FROM posters WHERE id = ?').get(poster.id);
+    res.json({ success: true, poster: updated });
+  } catch (err) {
+    console.error('Poster regenerate error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posters/:id', (req, res) => {
+  const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
+  if (!poster) return res.status(404).json({ error: 'Poster not found' });
+  if (poster.image_url) {
+    const filePath = path.join(__dirname, 'public', poster.image_url.replace(/^\//, ''));
+    try { fs.unlinkSync(filePath); } catch {}
+  }
+  db.prepare('DELETE FROM posters WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
 });
 
 app.get('/api/post-types', (req, res) => {
