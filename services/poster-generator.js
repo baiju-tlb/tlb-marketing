@@ -359,21 +359,51 @@ function wrapTextLines(text, maxChars) {
   return lines;
 }
 
-// Shared layout computation so the main generator and the overlay builder agree
-// on logo placement (needed for the luminance-based logo color pick).
-function computePosterLayout({ width, height }) {
-  const isLandscape = width > height;
-  const base = Math.min(width, height);
+// ==================== LAYOUT TEMPLATES ====================
+// Four distinct layouts so every regenerate gives a visually different poster.
+// - center-classic: centered stack (tagline / headline / sub / logo), bottom-weighted
+// - bottom-left:    editorial, all text anchored bottom-left, logo bottom-right
+// - top-hero:       big headline near the top, subtext + logo at the bottom
+// - minimal-center: just a big headline mid-frame, small sub, tiny logo, no tagline
+const LAYOUT_TEMPLATES = ['center-classic', 'bottom-left', 'top-hero', 'minimal-center'];
 
-  const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.1);
+function pickRandomTemplate(exclude) {
+  const pool = LAYOUT_TEMPLATES.filter(t => t !== exclude);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Compute the full layout for a given template. Each layout function wraps the
+// actual copy, positions every text block, the logo, and defines the gradient
+// stops. buildOverlaySvg just reads the returned geometry and draws it.
+function computePosterLayout({ width, height, template, headline, subtext, tagline }) {
+  const map = {
+    'center-classic': layoutCenterClassic,
+    'bottom-left':    layoutBottomLeft,
+    'top-hero':       layoutTopHero,
+    'minimal-center': layoutMinimalCenter
+  };
+  const fn = map[template] || map['center-classic'];
+  return fn({ width, height, headline, subtext, tagline });
+}
+
+function layoutCenterClassic({ width, height, headline, subtext, tagline }) {
+  const base = Math.min(width, height);
+  const isLandscape = width > height;
+
+  const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.10);
   const subtextSize  = Math.round(base * 0.034);
   const taglineSize  = Math.round(base * 0.028);
   const metaSize     = Math.round(base * 0.025);
 
-  const padBottom = Math.round(height * 0.055);
-  const metaY     = height - padBottom;
+  const charW = 0.58;
+  const headlineMaxChars = Math.max(6, Math.floor((width * 0.84) / (headlineSize * charW)));
+  const subtextMaxChars  = Math.max(10, Math.floor((width * 0.82) / (subtextSize * charW)));
+  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
+  const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
 
-  // Logo sits above the meta line, no pill.
+  const padBottom = Math.round(height * 0.055);
+  const metaY = height - padBottom;
+
   const logoWidth  = Math.round(width * 0.24);
   const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
   const logoGapBelow = Math.round(base * 0.022);
@@ -381,116 +411,343 @@ function computePosterLayout({ width, height }) {
   const logoTop    = logoBottom - logoHeight;
   const logoLeft   = Math.round((width - logoWidth) / 2);
 
-  return {
-    base, isLandscape,
-    headlineSize, subtextSize, taglineSize, metaSize,
-    padBottom, metaY,
-    logoWidth, logoHeight, logoTop, logoLeft, logoBottom
-  };
-}
-
-function buildOverlaySvg({ width, height, headline, subtext, tagline, phone, website, fontFamily, layout, logoIsWhite }) {
-  const { base, headlineSize, subtextSize, taglineSize, metaSize, metaY, logoTop } = layout;
-
-  // Character width estimate (geometric sans).
-  const charW = 0.58;
-  const headlineMaxChars = Math.max(6, Math.floor((width * 0.84) / (headlineSize * charW)));
-  const subtextMaxChars  = Math.max(10, Math.floor((width * 0.82) / (subtextSize * charW)));
-
-  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
-  const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
-  const centerX = width / 2;
-
-  // Subtext above logo
   const subtextGapBelow = Math.round(base * 0.035);
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
   const subtextBottom = logoTop - subtextGapBelow;
   const subtextStartY = subtextBottom - subtextBlockHeight + subtextSize;
 
-  // Headline above subtext
   const headlineGapBelow = Math.round(base * 0.025);
   const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
   const headlineBottom = subtextBottom - subtextBlockHeight - headlineGapBelow;
   const headlineStartY = headlineBottom - headlineBlockHeight + headlineSize;
 
-  // Tagline above headline
   const taglineGap = Math.round(base * 0.025);
   const taglineY = headlineStartY - headlineSize - taglineGap;
 
-  // Gradient: start well above the tagline so the tagline itself sits inside
-  // the darkened zone (previously the tagline was stuck at ~25% opacity and
-  // was invisible on vibrant backgrounds).
   const contentTop = Math.max(0, taglineY - Math.round(base * 0.15));
   const gradPct = Math.max(5, Math.min(85, Math.round((contentTop / height) * 100)));
 
-  const headlineTspans = headlineLines.map((line, i) =>
-    `<tspan x="${centerX}" dy="${i === 0 ? 0 : Math.round(headlineSize * 1.05)}">${escapeXml(line)}</tspan>`
-  ).join('');
+  const centerX = Math.round(width / 2);
 
-  const subtextTspans = subtextLines.map((line, i) =>
-    `<tspan x="${centerX}" dy="${i === 0 ? 0 : Math.round(subtextSize * 1.35)}">${escapeXml(line)}</tspan>`
-  ).join('');
+  return {
+    template: 'center-classic',
+    base, width, height,
+    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    headline: {
+      x: centerX, y: headlineStartY, size: headlineSize,
+      anchor: 'middle', weight: 700, lineHeight: 1.05, lines: headlineLines,
+      letterSpacing: -0.5
+    },
+    subtext: {
+      x: centerX, y: subtextStartY, size: subtextSize,
+      anchor: 'middle', weight: 400, lineHeight: 1.35, lines: subtextLines
+    },
+    tagline: tagline ? {
+      x: centerX, y: taglineY, size: taglineSize,
+      anchor: 'middle', weight: 500, letterSpacing: 3, text: tagline
+    } : null,
+    meta: {
+      x: centerX, y: metaY, size: metaSize,
+      anchor: 'middle', letterSpacing: 1.2
+    },
+    gradient: {
+      stops: [
+        { offset: 0,       opacity: 0 },
+        { offset: gradPct, opacity: 0.55 },
+        { offset: 100,     opacity: 0.94 }
+      ]
+    }
+  };
+}
 
-  // Text colors follow the same logic as the logo: on dark bg (white logo) use light text,
-  // on light bg (dark logo) use dark text. The gradient overlay is itself reversed
-  // depending on logo color so text always sits on an appropriate backdrop.
-  // For the tagline we use a brighter/deeper teal (not teal400) to guarantee contrast
-  // even when the background itself contains teal tones.
+function layoutBottomLeft({ width, height, headline, subtext, tagline }) {
+  const base = Math.min(width, height);
+  const isLandscape = width > height;
+
+  const headlineSize = isLandscape ? Math.round(base * 0.13) : Math.round(base * 0.095);
+  const subtextSize  = Math.round(base * 0.032);
+  const taglineSize  = Math.round(base * 0.025);
+  const metaSize     = Math.round(base * 0.022);
+
+  const padX = Math.round(width * 0.06);
+  const padBottom = Math.round(height * 0.055);
+
+  // Logo anchored bottom-right
+  const logoWidth  = Math.round(width * 0.20);
+  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
+  const logoLeft   = width - padX - logoWidth;
+  const metaY      = height - padBottom;
+  const metaX      = width - padX;
+  const logoGapBelow = Math.round(base * 0.018);
+  const logoBottom = metaY - metaSize - logoGapBelow;
+  const logoTop    = logoBottom - logoHeight;
+
+  // Text block bottom-left, up to ~65% width so it never crashes into the logo
+  const textMaxWidth = Math.round(width * 0.65);
+  const charW = 0.58;
+  const headlineMaxChars = Math.max(6, Math.floor(textMaxWidth / (headlineSize * charW)));
+  const subtextMaxChars  = Math.max(10, Math.floor(textMaxWidth / (subtextSize * charW)));
+  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
+  const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
+
+  // Align the bottom of the text block with the bottom of the logo
+  const textBottom = logoBottom;
+  const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
+  const subtextStartY = textBottom - subtextBlockHeight + subtextSize;
+
+  const headlineGapBelow = Math.round(base * 0.025);
+  const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
+  const headlineBottom = textBottom - subtextBlockHeight - headlineGapBelow;
+  const headlineStartY = headlineBottom - headlineBlockHeight + headlineSize;
+
+  const taglineGap = Math.round(base * 0.022);
+  const taglineY = headlineStartY - headlineSize - taglineGap;
+
+  const contentTop = Math.max(0, taglineY - Math.round(base * 0.12));
+  const gradPct = Math.max(5, Math.min(85, Math.round((contentTop / height) * 100)));
+
+  return {
+    template: 'bottom-left',
+    base, width, height,
+    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    headline: {
+      x: padX, y: headlineStartY, size: headlineSize,
+      anchor: 'start', weight: 700, lineHeight: 1.05, lines: headlineLines,
+      letterSpacing: -0.5
+    },
+    subtext: {
+      x: padX, y: subtextStartY, size: subtextSize,
+      anchor: 'start', weight: 400, lineHeight: 1.35, lines: subtextLines
+    },
+    tagline: tagline ? {
+      x: padX, y: taglineY, size: taglineSize,
+      anchor: 'start', weight: 500, letterSpacing: 3, text: tagline
+    } : null,
+    meta: {
+      x: metaX, y: metaY, size: metaSize,
+      anchor: 'end', letterSpacing: 1.2
+    },
+    gradient: {
+      stops: [
+        { offset: 0,       opacity: 0 },
+        { offset: gradPct, opacity: 0.55 },
+        { offset: 100,     opacity: 0.94 }
+      ]
+    }
+  };
+}
+
+function layoutTopHero({ width, height, headline, subtext, tagline }) {
+  const base = Math.min(width, height);
+  const isLandscape = width > height;
+
+  const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.11);
+  const subtextSize  = Math.round(base * 0.032);
+  const taglineSize  = Math.round(base * 0.025);
+  const metaSize     = Math.round(base * 0.022);
+
+  const padTop    = Math.round(height * 0.09);
+  const padBottom = Math.round(height * 0.055);
+  const centerX   = Math.round(width / 2);
+
+  const charW = 0.58;
+  const headlineMaxChars = Math.max(6, Math.floor((width * 0.82) / (headlineSize * charW)));
+  const subtextMaxChars  = Math.max(10, Math.floor((width * 0.72) / (subtextSize * charW)));
+  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
+  const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 2);
+
+  // Tagline at the very top, headline right underneath
+  const taglineY = padTop;
+  const taglineGap = Math.round(base * 0.025);
+  const headlineStartY = taglineY + taglineGap + headlineSize;
+  const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
+
+  // Logo at bottom center
+  const logoWidth  = Math.round(width * 0.22);
+  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
+  const logoLeft   = Math.round((width - logoWidth) / 2);
+
+  const metaY = height - padBottom;
+  const logoGapBelow = Math.round(base * 0.02);
+  const logoBottom = metaY - metaSize - logoGapBelow;
+  const logoTop    = logoBottom - logoHeight;
+
+  // Subtext directly above logo
+  const subtextGapBelow = Math.round(base * 0.03);
+  const subtextBottom = logoTop - subtextGapBelow;
+  const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
+  const subtextStartY = subtextBottom - subtextBlockHeight + subtextSize;
+
+  // V-shaped gradient: dark band at top (behind headline), clear middle,
+  // dark band at bottom (behind subtext + logo + meta)
+  const topDarkEndY = taglineY + headlineBlockHeight + Math.round(base * 0.08);
+  const bottomDarkStartY = subtextStartY - subtextSize - Math.round(base * 0.06);
+  const topDarkEndPct = Math.max(15, Math.min(45, Math.round((topDarkEndY / height) * 100)));
+  const bottomDarkStartPct = Math.max(55, Math.min(85, Math.round((bottomDarkStartY / height) * 100)));
+
+  return {
+    template: 'top-hero',
+    base, width, height,
+    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    headline: {
+      x: centerX, y: headlineStartY, size: headlineSize,
+      anchor: 'middle', weight: 700, lineHeight: 1.05, lines: headlineLines,
+      letterSpacing: -0.5
+    },
+    subtext: {
+      x: centerX, y: subtextStartY, size: subtextSize,
+      anchor: 'middle', weight: 400, lineHeight: 1.35, lines: subtextLines
+    },
+    tagline: tagline ? {
+      x: centerX, y: taglineY, size: taglineSize,
+      anchor: 'middle', weight: 500, letterSpacing: 3, text: tagline
+    } : null,
+    meta: {
+      x: centerX, y: metaY, size: metaSize,
+      anchor: 'middle', letterSpacing: 1.2
+    },
+    gradient: {
+      stops: [
+        { offset: 0,                  opacity: 0.80 },
+        { offset: topDarkEndPct,      opacity: 0 },
+        { offset: bottomDarkStartPct, opacity: 0 },
+        { offset: 100,                opacity: 0.92 }
+      ]
+    }
+  };
+}
+
+function layoutMinimalCenter({ width, height, headline, subtext, tagline }) {
+  const base = Math.min(width, height);
+  const isLandscape = width > height;
+
+  const headlineSize = isLandscape ? Math.round(base * 0.18) : Math.round(base * 0.14);
+  const subtextSize  = Math.round(base * 0.028);
+  const metaSize     = Math.round(base * 0.02);
+
+  const centerX = Math.round(width / 2);
+  const centerY = Math.round(height / 2);
+
+  const charW = 0.58;
+  const headlineMaxChars = Math.max(4, Math.floor((width * 0.80) / (headlineSize * charW)));
+  const subtextMaxChars  = Math.max(10, Math.floor((width * 0.72) / (subtextSize * charW)));
+  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 2);
+  const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 2);
+
+  // Centre the headline block vertically around the frame's mid-point
+  const headlineBlockHeight = headlineLines.length * headlineSize * 1.03;
+  const headlineStartY = centerY - Math.round(headlineBlockHeight / 2) + headlineSize;
+  const headlineBottom = headlineStartY + headlineBlockHeight - headlineSize;
+
+  const subtextGap = Math.round(base * 0.028);
+  const subtextStartY = headlineBottom + subtextGap + subtextSize;
+
+  // Small logo at the bottom
+  const padBottom = Math.round(height * 0.055);
+  const logoWidth  = Math.round(width * 0.16);
+  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
+  const logoLeft   = Math.round((width - logoWidth) / 2);
+  const metaY      = height - padBottom;
+  const logoGapBelow = Math.round(base * 0.018);
+  const logoBottom = metaY - metaSize - logoGapBelow;
+  const logoTop    = logoBottom - logoHeight;
+
+  return {
+    template: 'minimal-center',
+    base, width, height,
+    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    headline: {
+      x: centerX, y: headlineStartY, size: headlineSize,
+      anchor: 'middle', weight: 700, lineHeight: 1.03, lines: headlineLines,
+      letterSpacing: -1
+    },
+    subtext: {
+      x: centerX, y: subtextStartY, size: subtextSize,
+      anchor: 'middle', weight: 400, lineHeight: 1.35, lines: subtextLines
+    },
+    tagline: null, // minimal layout skips the tagline on purpose
+    meta: {
+      x: centerX, y: metaY, size: metaSize,
+      anchor: 'middle', letterSpacing: 1.2
+    },
+    gradient: {
+      stops: [
+        { offset: 0,   opacity: 0.35 },
+        { offset: 30,  opacity: 0.10 },
+        { offset: 70,  opacity: 0.10 },
+        { offset: 100, opacity: 0.55 }
+      ]
+    }
+  };
+}
+
+function buildOverlaySvg({ width, height, phone, website, fontFamily, layout, logoIsWhite }) {
+  // Text colours flip with logo variant: on dark bg (white logo) use light text,
+  // on light bg (dark logo) use dark text. The gradient uses the complementary
+  // dark/light colour so text always sits on an appropriate backdrop.
   const headlineFill = logoIsWhite ? '#FFFFFF' : TLB_BRAND.dark900;
   const subtextFill  = logoIsWhite ? '#EAF0F7' : TLB_BRAND.slate700;
   const metaFill     = logoIsWhite ? '#FFFFFF' : TLB_BRAND.dark800;
   const taglineFill  = logoIsWhite ? TLB_BRAND.teal200 : TLB_BRAND.teal700;
-
   const gradStopColor = logoIsWhite ? TLB_BRAND.dark900 : '#FFFFFF';
-  // Stronger mid-stop so the tagline reads even on vibrant/colorful backgrounds.
-  const gradMidOpacity = logoIsWhite ? 0.55 : 0.55;
-  const gradEndOpacity = logoIsWhite ? 0.94 : 0.94;
+
+  const gradientStopsSvg = layout.gradient.stops.map(s =>
+    `      <stop offset="${s.offset}%" stop-color="${gradStopColor}" stop-opacity="${s.opacity}"/>`
+  ).join('\n');
+
+  const { headline, subtext, tagline, meta } = layout;
+
+  const headlineTspans = headline.lines.map((line, i) =>
+    `<tspan x="${headline.x}" dy="${i === 0 ? 0 : Math.round(headline.size * headline.lineHeight)}">${escapeXml(line)}</tspan>`
+  ).join('');
+
+  const subtextTspans = subtext.lines.map((line, i) =>
+    `<tspan x="${subtext.x}" dy="${i === 0 ? 0 : Math.round(subtext.size * subtext.lineHeight)}">${escapeXml(line)}</tspan>`
+  ).join('');
+
+  const taglineSvg = tagline ? `
+  <text x="${tagline.x}" y="${tagline.y}"
+        font-family="${fontFamily}"
+        font-size="${tagline.size}"
+        font-weight="${tagline.weight}"
+        fill="${taglineFill}"
+        text-anchor="${tagline.anchor}"
+        letter-spacing="${tagline.letterSpacing}">${escapeXml(tagline.text.toUpperCase())}</text>
+  ` : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
     <linearGradient id="readGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="${gradStopColor}" stop-opacity="0"/>
-      <stop offset="${gradPct}%" stop-color="${gradStopColor}" stop-opacity="${gradMidOpacity}"/>
-      <stop offset="100%" stop-color="${gradStopColor}" stop-opacity="${gradEndOpacity}"/>
+${gradientStopsSvg}
     </linearGradient>
   </defs>
 
   <rect width="${width}" height="${height}" fill="url(#readGrad)"/>
-
-  ${tagline ? `
-  <text x="${centerX}" y="${taglineY}"
+  ${taglineSvg}
+  <text x="${headline.x}" y="${headline.y}"
         font-family="${fontFamily}"
-        font-size="${taglineSize}"
-        font-weight="500"
-        fill="${taglineFill}"
-        text-anchor="middle"
-        letter-spacing="3">${escapeXml(tagline.toUpperCase())}</text>
-  ` : ''}
-
-  <text x="${centerX}" y="${headlineStartY}"
-        font-family="${fontFamily}"
-        font-size="${headlineSize}"
-        font-weight="700"
+        font-size="${headline.size}"
+        font-weight="${headline.weight}"
         fill="${headlineFill}"
-        text-anchor="middle"
-        letter-spacing="-0.5">${headlineTspans}</text>
+        text-anchor="${headline.anchor}"
+        letter-spacing="${headline.letterSpacing}">${headlineTspans}</text>
 
-  <text x="${centerX}" y="${subtextStartY}"
+  <text x="${subtext.x}" y="${subtext.y}"
         font-family="${fontFamily}"
-        font-size="${subtextSize}"
-        font-weight="400"
+        font-size="${subtext.size}"
+        font-weight="${subtext.weight}"
         fill="${subtextFill}"
-        text-anchor="middle">${subtextTspans}</text>
+        text-anchor="${subtext.anchor}">${subtextTspans}</text>
 
-  <text x="${centerX}" y="${metaY}"
+  <text x="${meta.x}" y="${meta.y}"
         font-family="${fontFamily}"
-        font-size="${metaSize}"
+        font-size="${meta.size}"
         font-weight="500"
         fill="${metaFill}"
         fill-opacity="0.88"
-        text-anchor="middle"
-        letter-spacing="1.2">${escapeXml(website)}   •   ${escapeXml(phone)}</text>
+        text-anchor="${meta.anchor}"
+        letter-spacing="${meta.letterSpacing}">${escapeXml(website)}   •   ${escapeXml(phone)}</text>
 </svg>`;
 }
 
@@ -519,7 +776,7 @@ async function sampleLuminance(buffer, { left, top, width, height }) {
 }
 
 // ==================== MAIN POSTER BUILDER ====================
-async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline }) {
+async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template }) {
   const sizeCfg = SIZES[size] || SIZES.square;
   const lang = LANGUAGES[language] || LANGUAGES.english;
   const { width, height } = sizeCfg;
@@ -539,40 +796,47 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     };
   }
 
-  // 2. Background image from Gemini
+  // 2. Pick layout template. Random per generation unless the caller forces one
+  //    (useful for smoke tests and for a future "lock layout" UI toggle).
+  const chosenTemplate = LAYOUT_TEMPLATES.includes(template) ? template : pickRandomTemplate();
+
+  // 3. Background image from Gemini
   const bgBuffer = await generateBackgroundImage({ occasion, customPrompt, backgroundStyle, size });
 
-  // 3. Resize background to exact poster size
+  // 4. Resize background to exact poster size
   const bgResized = await sharp(bgBuffer)
     .resize(width, height, { fit: 'cover', position: 'center' })
     .toBuffer();
 
-  // 4. Compute shared layout (needed for both sampling and rendering)
-  const layout = computePosterLayout({ width, height });
+  // 5. Compute layout for the chosen template (wraps text, positions every block)
+  const layout = computePosterLayout({
+    width, height,
+    template: chosenTemplate,
+    headline: copy.headline,
+    subtext: copy.subtext,
+    tagline: copy.tagline
+  });
 
-  // 5. Decide logo variant based on raw bg luminance at the logo region.
+  // 6. Decide logo variant based on raw bg luminance at the logo region.
   //    (We sample the raw bg, not the gradient-applied version, because the
   //    gradient direction itself depends on the choice we are trying to make.)
   const rawLuma = await sampleLuminance(bgResized, {
-    left: layout.logoLeft,
-    top: layout.logoTop,
-    width: layout.logoWidth,
-    height: layout.logoHeight
+    left: layout.logo.left,
+    top: layout.logo.top,
+    width: layout.logo.width,
+    height: layout.logo.height
   });
   // Bg is considered "light" if clearly bright. We skew slightly toward using
   // the white logo because our gradient darkens ambiguous regions.
   const useWhiteLogo = rawLuma < 170;
 
-  // 6. Rasterise the chosen logo at the target pixel width
+  // 7. Rasterise the chosen logo at the target pixel width
   const logoPath = useWhiteLogo ? LOGO_WHITE_PATH : LOGO_DARK_PATH;
-  const logoBuffer = await rasterizeLogo(logoPath, layout.logoWidth);
+  const logoBuffer = await rasterizeLogo(logoPath, layout.logo.width);
 
-  // 7. Build the overlay SVG (gradient + text + meta line).
+  // 8. Build the overlay SVG (gradient + text + meta line).
   const overlaySvg = buildOverlaySvg({
     width, height,
-    headline: copy.headline,
-    subtext: copy.subtext,
-    tagline: copy.tagline,
     phone: TLB_PHONE,
     website: TLB_WEBSITE,
     fontFamily: lang.font,
@@ -580,11 +844,11 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     logoIsWhite: useWhiteLogo
   });
 
-  // 8. Final composite: bg -> overlay -> logo
+  // 9. Final composite: bg -> overlay -> logo
   const finalBuffer = await sharp(bgResized)
     .composite([
       { input: Buffer.from(overlaySvg), top: 0, left: 0 },
-      { input: logoBuffer, top: layout.logoTop, left: layout.logoLeft }
+      { input: logoBuffer, top: layout.logo.top, left: layout.logo.left }
     ])
     .png({ quality: 95, compressionLevel: 8 })
     .toBuffer();
@@ -594,7 +858,8 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     copy,
     size: sizeCfg,
     mimeType: 'image/png',
-    logoVariant: useWhiteLogo ? 'white' : 'dark'
+    logoVariant: useWhiteLogo ? 'white' : 'dark',
+    template: chosenTemplate
   };
 }
 
