@@ -1431,6 +1431,50 @@ function closeSidebarMobile() {
 // ==================== POSTERS ====================
 let posterOptions = null;
 let posterSelectedBgStyle = 'graphics';
+let posterSelectedSize = 'square';
+let posterSelectedLanguage = 'english';
+let posterSelectedLayout = 'auto';
+
+// Values that should render with a small "NEW" badge to flag recently-added
+// options in the Create Poster modal.
+const POSTER_NEW_VALUES = new Set(['youtube', 'cartoon']);
+
+function posterNewBadge(value) {
+  return POSTER_NEW_VALUES.has(value)
+    ? '<span class="ml-1.5 inline-block px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[9px] font-bold uppercase tracking-wider align-middle">New</span>'
+    : '';
+}
+
+// Shared renderer for the tag-style selectable groups in the Create Poster
+// modal. `items` is an array of { value, label }, `getSelected` returns the
+// currently selected value, and `onSelect` is called with the new value.
+function renderPosterTagGroup(gridId, items, getSelected, onSelect) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  grid.innerHTML = items.map(item => {
+    const active = item.value === getSelected();
+    const cls = active
+      ? 'border-brand-500 bg-brand-50 text-brand-700'
+      : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50';
+    return `<button type="button" data-value="${item.value}"
+      class="poster-tag-btn px-3 py-1.5 rounded-full border text-xs font-medium transition ${cls}">
+      ${escHtml(item.label)}${posterNewBadge(item.value)}
+    </button>`;
+  }).join('');
+  grid.querySelectorAll('.poster-tag-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      onSelect(btn.dataset.value);
+      // Repaint this group so the active styles swap
+      grid.querySelectorAll('.poster-tag-btn').forEach(b => {
+        const isActive = b.dataset.value === getSelected();
+        b.className = 'poster-tag-btn px-3 py-1.5 rounded-full border text-xs font-medium transition ' +
+          (isActive
+            ? 'border-brand-500 bg-brand-50 text-brand-700'
+            : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50');
+      });
+    });
+  });
+}
 let currentPreviewPoster = null;
 let posterTipTimer = null;
 
@@ -1564,40 +1608,65 @@ async function openPosterModal() {
   // Ensure the generating overlay is reset in case the previous attempt errored
   hidePosterGenerating();
 
-  // Occasions
+  // Occasions — kept as a dropdown because the list is long
   const occSel = document.getElementById('poster-occasion');
   occSel.innerHTML = posterOptions.occasions.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-
-  // Sizes
-  const sizeSel = document.getElementById('poster-size');
-  sizeSel.innerHTML = posterOptions.sizes.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
-
-  // Languages
-  const langSel = document.getElementById('poster-language');
-  langSel.innerHTML = posterOptions.languages.map(l => `<option value="${l.value}">${l.label}</option>`).join('');
-
-  // Layouts
-  const layoutSel = document.getElementById('poster-layout');
-  const layouts = posterOptions.layouts || [{ value: 'auto', label: 'Auto / Surprise me' }];
-  layoutSel.innerHTML = layouts.map(l => `<option value="${l.value}">${l.label}</option>`).join('');
-
-  // Default selections
   occSel.value = 'land_promo';
-  sizeSel.value = 'square';
-  langSel.value = 'english';
-  layoutSel.value = 'auto';
 
-  // Background style grid
+  // Reset selections to sensible defaults every time the modal opens
+  posterSelectedSize = 'square';
+  posterSelectedLanguage = 'english';
+  posterSelectedLayout = 'auto';
+  posterSelectedBgStyle = 'graphics';
+
+  // Size (tag buttons)
+  renderPosterTagGroup(
+    'poster-size-grid',
+    posterOptions.sizes,
+    () => posterSelectedSize,
+    (v) => { posterSelectedSize = v; }
+  );
+
+  // Language (tag buttons)
+  renderPosterTagGroup(
+    'poster-language-grid',
+    posterOptions.languages,
+    () => posterSelectedLanguage,
+    (v) => { posterSelectedLanguage = v; }
+  );
+
+  // Layout (tag buttons)
+  const layouts = posterOptions.layouts || [{ value: 'auto', label: 'Auto / Surprise me' }];
+  renderPosterTagGroup(
+    'poster-layout-grid',
+    layouts,
+    () => posterSelectedLayout,
+    (v) => { posterSelectedLayout = v; }
+  );
+
+  // Background style grid (slightly larger card-style buttons)
   const bgGrid = document.getElementById('poster-bg-grid');
-  const styleIcons = { plain: '◻︎', graphics: '✦', people: '☺' };
-  bgGrid.innerHTML = posterOptions.backgroundStyles.map(s => `
-    <button type="button" onclick="selectPosterBgStyle('${s.value}')"
-      class="poster-bg-btn px-3 py-3 rounded-lg border-2 text-xs font-medium text-gray-700 text-center transition
-      ${s.value === posterSelectedBgStyle ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}"
-      data-value="${s.value}">
-      <span class="block text-base mb-0.5">${styleIcons[s.value] || '◆'}</span>${s.label}
-    </button>
-  `).join('');
+  const styleIcons = { plain: '◻︎', graphics: '✦', people: '☺', cartoon: '✎' };
+  const renderBgGrid = () => {
+    bgGrid.innerHTML = posterOptions.backgroundStyles.map(s => {
+      const active = s.value === posterSelectedBgStyle;
+      const cls = active
+        ? 'border-brand-500 bg-brand-50 text-brand-700'
+        : 'border-gray-200 text-gray-700 hover:border-gray-300';
+      return `<button type="button" data-value="${s.value}"
+        class="poster-bg-btn relative px-3 py-3 rounded-lg border-2 text-xs font-medium text-center transition ${cls}">
+        ${POSTER_NEW_VALUES.has(s.value) ? '<span class="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[9px] font-bold uppercase tracking-wider">New</span>' : ''}
+        <span class="block text-base mb-0.5">${styleIcons[s.value] || '◆'}</span>${escHtml(s.label)}
+      </button>`;
+    }).join('');
+    bgGrid.querySelectorAll('.poster-bg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        posterSelectedBgStyle = btn.dataset.value;
+        renderBgGrid();
+      });
+    });
+  };
+  renderBgGrid();
 
   // Clear overrides
   document.getElementById('poster-prompt').value = '';
@@ -1609,27 +1678,14 @@ async function openPosterModal() {
   lucide.createIcons();
 }
 
-function selectPosterBgStyle(value) {
-  posterSelectedBgStyle = value;
-  document.querySelectorAll('.poster-bg-btn').forEach(btn => {
-    if (btn.dataset.value === value) {
-      btn.classList.add('border-brand-500', 'bg-brand-50');
-      btn.classList.remove('border-gray-200', 'hover:border-gray-300');
-    } else {
-      btn.classList.remove('border-brand-500', 'bg-brand-50');
-      btn.classList.add('border-gray-200', 'hover:border-gray-300');
-    }
-  });
-}
-
 async function submitPosterGenerate() {
   const body = {
     occasion: document.getElementById('poster-occasion').value,
     customPrompt: document.getElementById('poster-prompt').value.trim(),
     backgroundStyle: posterSelectedBgStyle,
-    size: document.getElementById('poster-size').value,
-    language: document.getElementById('poster-language').value,
-    template: document.getElementById('poster-layout').value || 'auto',
+    size: posterSelectedSize,
+    language: posterSelectedLanguage,
+    template: posterSelectedLayout || 'auto',
     headline: document.getElementById('poster-headline').value.trim(),
     subtext: document.getElementById('poster-subtext').value.trim(),
     tagline: document.getElementById('poster-tagline').value.trim()
@@ -1642,6 +1698,7 @@ async function submitPosterGenerate() {
     if (result.error) throw new Error(result.error);
     hidePosterGenerating();
     closeModal('modal-poster');
+    fireConfetti();
     showToast('Poster created!', 'success');
     loadPosters();
     openPosterPreview(result.poster.id, result.poster);
@@ -1649,6 +1706,23 @@ async function submitPosterGenerate() {
     hidePosterGenerating();
     showToast(err.message || 'Failed to generate poster', 'error');
   }
+}
+
+// Celebration burst fired when a poster finishes generating. Uses
+// canvas-confetti (loaded via CDN) and degrades silently if the library
+// failed to load.
+function fireConfetti() {
+  if (typeof confetti !== 'function') return;
+  const tlbColors = ['#30B0A4', '#A8E2DB', '#6DCEC5', '#207B74', '#FFFFFF'];
+  const defaults = { zIndex: 9999, colors: tlbColors, disableForReducedMotion: true };
+
+  // Quick central burst
+  confetti({ ...defaults, particleCount: 90, spread: 80, origin: { y: 0.6 } });
+  // Side cannons for extra flair
+  setTimeout(() => {
+    confetti({ ...defaults, particleCount: 60, angle: 60,  spread: 70, origin: { x: 0, y: 0.7 } });
+    confetti({ ...defaults, particleCount: 60, angle: 120, spread: 70, origin: { x: 1, y: 0.7 } });
+  }, 180);
 }
 
 async function openPosterPreview(id, preloaded) {
@@ -1739,6 +1813,82 @@ function setPreviewMode(mode) {
   });
 }
 
+// Mirror of the layout size ratios in services/poster-generator.js. Kept in
+// sync so the edit form can show the current effective font sizes in px.
+function computeDefaultFontSizes({ width, height, template, size }) {
+  const base = Math.min(width, height);
+  const isLandscape = width > height;
+  // YouTube size forces the youtube-thumb layout regardless of template value.
+  let t = size === 'youtube' ? 'youtube-thumb' : (template || 'center-classic');
+  if (t === 'auto') t = 'center-classic';
+
+  switch (t) {
+    case 'bottom-left':
+      return {
+        headline: Math.round(base * (isLandscape ? 0.13 : 0.095)),
+        subtext:  Math.round(base * 0.032),
+        tagline:  Math.round(base * 0.025)
+      };
+    case 'top-hero':
+      return {
+        headline: Math.round(base * (isLandscape ? 0.14 : 0.11)),
+        subtext:  Math.round(base * 0.032),
+        tagline:  Math.round(base * 0.025)
+      };
+    case 'minimal-center':
+      return {
+        headline: Math.round(base * (isLandscape ? 0.18 : 0.14)),
+        subtext:  Math.round(base * 0.028),
+        tagline:  0
+      };
+    case 'youtube-thumb':
+      return {
+        headline: Math.round(base * 0.13),
+        subtext:  Math.round(base * 0.045),
+        tagline:  0
+      };
+    case 'center-classic':
+    default:
+      return {
+        headline: Math.round(base * (isLandscape ? 0.14 : 0.10)),
+        subtext:  Math.round(base * 0.034),
+        tagline:  Math.round(base * 0.028)
+      };
+  }
+}
+
+// Re-fill the font size inputs based on the currently selected layout. Called
+// when the edit form opens and whenever the layout dropdown changes.
+function refreshEditFontSizes() {
+  if (!currentPreviewPoster) return;
+  const p = currentPreviewPoster;
+  const template = document.getElementById('edit-poster-layout').value || p.template || 'auto';
+
+  let savedSizes = {};
+  if (p.font_sizes) {
+    try { savedSizes = JSON.parse(p.font_sizes) || {}; } catch {}
+  }
+
+  const defaults = computeDefaultFontSizes({
+    width: p.width, height: p.height, template, size: p.size
+  });
+
+  // Prefer saved override, fall back to computed default. Tagline = 0 means
+  // "not used in this layout" — show empty rather than 0.
+  const headEl = document.getElementById('edit-poster-headline-size');
+  const subEl  = document.getElementById('edit-poster-subtext-size');
+  const tagEl  = document.getElementById('edit-poster-tagline-size');
+
+  headEl.value = savedSizes.headline || defaults.headline || '';
+  subEl.value  = savedSizes.subtext  || defaults.subtext  || '';
+  tagEl.value  = savedSizes.tagline  || defaults.tagline  || '';
+
+  // Disable tagline input when the current layout doesn't render it.
+  const taglineUsed = defaults.tagline > 0;
+  tagEl.disabled = !taglineUsed;
+  tagEl.placeholder = taglineUsed ? 'auto' : 'n/a';
+}
+
 function enterEditTextMode() {
   if (!currentPreviewPoster) return;
   const p = currentPreviewPoster;
@@ -1752,6 +1902,11 @@ function enterEditTextMode() {
   const layouts = (posterOptions && posterOptions.layouts) || [{ value: 'auto', label: 'Auto / Surprise me' }];
   layoutSel.innerHTML = layouts.map(l => `<option value="${l.value}">${escHtml(l.label)}</option>`).join('');
   layoutSel.value = p.template || 'auto';
+  // Recompute the font size inputs whenever the user switches layout.
+  layoutSel.onchange = refreshEditFontSizes;
+
+  // Pre-fill the font size inputs with the current effective sizes
+  refreshEditFontSizes();
 
   // Show / hide the "needs regenerate first" notice for legacy posters
   const notice = document.getElementById('edit-poster-legacy-notice');
@@ -1769,11 +1924,23 @@ async function saveEditedText() {
   if (!currentPreviewPoster) return;
   const id = currentPreviewPoster.id;
   const btn = document.getElementById('btn-save-edit-text');
+
+  // Collect font size overrides. Only include non-empty positive values; the
+  // server will clamp them to a sane range. An empty object means "clear".
+  const fontSizes = {};
+  const hSize = Number(document.getElementById('edit-poster-headline-size').value);
+  const sSize = Number(document.getElementById('edit-poster-subtext-size').value);
+  const tSize = Number(document.getElementById('edit-poster-tagline-size').value);
+  if (Number.isFinite(hSize) && hSize > 0) fontSizes.headline = hSize;
+  if (Number.isFinite(sSize) && sSize > 0) fontSizes.subtext  = sSize;
+  if (Number.isFinite(tSize) && tSize > 0) fontSizes.tagline  = tSize;
+
   const payload = {
     headline: document.getElementById('edit-poster-headline').value.trim(),
     subtext: document.getElementById('edit-poster-subtext').value.trim(),
     tagline: document.getElementById('edit-poster-tagline').value.trim(),
-    template: document.getElementById('edit-poster-layout').value || 'auto'
+    template: document.getElementById('edit-poster-layout').value || 'auto',
+    fontSizes
   };
   if (!payload.headline) return showToast('Headline cannot be empty', 'error');
 

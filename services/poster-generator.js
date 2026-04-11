@@ -158,7 +158,8 @@ const SIZES = {
   square: { label: 'Square Post (1:1)', width: 1080, height: 1080, aspect: '1:1 square' },
   portrait: { label: 'Portrait Post (4:5)', width: 1080, height: 1350, aspect: '4:5 portrait' },
   story: { label: 'Story / Reel (9:16)', width: 1080, height: 1920, aspect: '9:16 vertical' },
-  landscape: { label: 'LinkedIn / FB (1.91:1)', width: 1200, height: 628, aspect: '1.91:1 landscape' }
+  landscape: { label: 'LinkedIn / FB (1.91:1)', width: 1200, height: 628, aspect: '1.91:1 landscape' },
+  youtube: { label: 'YouTube Thumbnail (16:9)', width: 1280, height: 720, aspect: '16:9 landscape', noBranding: true }
 };
 
 // ==================== BACKGROUND STYLES ====================
@@ -176,6 +177,10 @@ const BG_STYLES = {
   people: {
     label: 'With People',
     desc: 'warm lifestyle photography of Indian people, family or individuals in an authentic and respectful composition, soft depth of field, cinematic tones, editorial quality'
+  },
+  cartoon: {
+    label: 'Cartoon',
+    desc: 'hand-drawn cartoon illustration featuring Indian people or families as the main subject, rendered as clearly stylised cartoon characters with expressive faces, clean bold outlines, flat cel-shaded colours and friendly rounded proportions. Think modern editorial cartoon or animated-film keyframe style (Pixar / Disney / Studio Ghibli inspired), not photography, not realistic, not 3D render. Warm, human, culturally grounded scene appropriate to the occasion — show people in the moment, not just props'
   }
 };
 
@@ -309,6 +314,26 @@ async function generateBackgroundPrompt({ occasion, customPrompt, backgroundStyl
     ? `- Colour and mood direction: follow the user brief above exactly. If the brief mentions specific colours, moods, or a palette (e.g. "vibrant pinks", "monochrome gold", "warm pastel"), those OVERRIDE any default brand palette. Do NOT add TLB navy or teal unless the brief asks for it.`
     : `- Colour palette: use TLB brand palette only — dark navy (#0C1421), dark slate (#101828), TLB teal (#30B0A4), soft teal (#A8E2DB). Do not introduce other colours.`;
 
+  // YouTube thumbnail style: eye-catching, high contrast, centered focal point,
+  // title will be overlaid in the middle instead of the bottom. No branding.
+  if (sizeCfg.noBranding) {
+    return `Create a premium YouTube THUMBNAIL background image.
+
+Concept / Topic: ${occ.context || 'land, property, or business topic in India'}
+${hasBrief ? `User brief (HIGHEST PRIORITY — follow this for mood, colours, subject details): ${customPrompt.trim()}` : ''}
+
+Subject style: ${bg.desc}
+
+Critical requirements:
+- Aspect ratio: ${sizeCfg.aspect} (${sizeCfg.width}x${sizeCfg.height})
+${paletteRule}
+- Eye-catching and high contrast, suitable for a YouTube thumbnail
+- Leave the CENTRAL AREA relatively clean or softly darkened so a large title can be clearly overlaid
+- Cinematic lighting, rich depth, premium editorial quality
+- Absolutely NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO WATERMARKS, NO TYPOGRAPHY of any kind anywhere in the image
+- Confident, uncluttered, never busy, never tacky.`;
+  }
+
   return `Create a premium social media poster BACKGROUND image for "The Land Bankers" (TLB), India's first land rating platform.
 
 Concept / Occasion: ${occ.context || 'land and property branding in India'}
@@ -435,24 +460,25 @@ function computeFooter({ width, height, base, align = 'center', padX = 0, logoWi
 // Compute the full layout for a given template. Each layout function wraps the
 // actual copy, positions every text block, the logo, and defines the gradient
 // stops. buildOverlaySvg just reads the returned geometry and draws it.
-function computePosterLayout({ width, height, template, headline, subtext, tagline }) {
+function computePosterLayout({ width, height, template, headline, subtext, tagline, fontSizeOverrides }) {
   const map = {
     'center-classic': layoutCenterClassic,
     'bottom-left':    layoutBottomLeft,
     'top-hero':       layoutTopHero,
-    'minimal-center': layoutMinimalCenter
+    'minimal-center': layoutMinimalCenter,
+    'youtube-thumb':  layoutYoutube
   };
   const fn = map[template] || map['center-classic'];
-  return fn({ width, height, headline, subtext, tagline });
+  return fn({ width, height, headline, subtext, tagline, fontSizeOverrides: fontSizeOverrides || {} });
 }
 
-function layoutCenterClassic({ width, height, headline, subtext, tagline }) {
+function layoutCenterClassic({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.10);
-  const subtextSize  = Math.round(base * 0.034);
-  const taglineSize  = Math.round(base * 0.028);
+  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.10));
+  const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.034);
+  const taglineSize  = fontSizeOverrides.tagline  || Math.round(base * 0.028);
 
   const charW = 0.58;
   const headlineMaxChars = Math.max(6, Math.floor((width * 0.84) / (headlineSize * charW)));
@@ -509,13 +535,13 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline }) {
   };
 }
 
-function layoutBottomLeft({ width, height, headline, subtext, tagline }) {
+function layoutBottomLeft({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = isLandscape ? Math.round(base * 0.13) : Math.round(base * 0.095);
-  const subtextSize  = Math.round(base * 0.032);
-  const taglineSize  = Math.round(base * 0.025);
+  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.13) : Math.round(base * 0.095));
+  const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.032);
+  const taglineSize  = fontSizeOverrides.tagline  || Math.round(base * 0.025);
 
   const padX = Math.round(width * 0.06);
 
@@ -575,13 +601,13 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline }) {
   };
 }
 
-function layoutTopHero({ width, height, headline, subtext, tagline }) {
+function layoutTopHero({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.11);
-  const subtextSize  = Math.round(base * 0.032);
-  const taglineSize  = Math.round(base * 0.025);
+  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.11));
+  const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.032);
+  const taglineSize  = fontSizeOverrides.tagline  || Math.round(base * 0.025);
 
   const padTop  = Math.round(height * 0.09);
   const centerX = Math.round(width / 2);
@@ -644,12 +670,12 @@ function layoutTopHero({ width, height, headline, subtext, tagline }) {
   };
 }
 
-function layoutMinimalCenter({ width, height, headline, subtext, tagline }) {
+function layoutMinimalCenter({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = isLandscape ? Math.round(base * 0.18) : Math.round(base * 0.14);
-  const subtextSize  = Math.round(base * 0.028);
+  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.18) : Math.round(base * 0.14));
+  const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.028);
 
   const centerX = Math.round(width / 2);
   const centerY = Math.round(height / 2);
@@ -693,6 +719,58 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline }) {
         { offset: 30,  opacity: 0.10 },
         { offset: 70,  opacity: 0.10 },
         { offset: 100, opacity: 0.55 }
+      ]
+    }
+  };
+}
+
+// YouTube thumbnail layout: 16:9 canvas, big centred title, optional subtext
+// underneath. No logo, no phone, no url, no tagline — just the title.
+function layoutYoutube({ width, height, headline, subtext, fontSizeOverrides = {} }) {
+  const base = Math.min(width, height);
+
+  const headlineSize = fontSizeOverrides.headline || Math.round(base * 0.13);
+  const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.045);
+
+  const centerX = Math.round(width / 2);
+  const centerY = Math.round(height / 2);
+
+  const charW = 0.58;
+  const headlineMaxChars = Math.max(6, Math.floor((width * 0.88) / (headlineSize * charW)));
+  const subtextMaxChars  = Math.max(10, Math.floor((width * 0.78) / (subtextSize * charW)));
+  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
+  const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 2);
+
+  const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
+  const subtextBlockHeight = subtextLines.length * subtextSize * 1.3;
+  const gap = subtextLines.length ? Math.round(base * 0.03) : 0;
+  const totalHeight = headlineBlockHeight + gap + subtextBlockHeight;
+
+  const blockTop = Math.round(centerY - totalHeight / 2);
+  const headlineStartY = blockTop + headlineSize;
+  const subtextStartY = blockTop + headlineBlockHeight + gap + subtextSize;
+
+  return {
+    template: 'youtube-thumb',
+    base, width, height,
+    logo: null,
+    headline: {
+      x: centerX, y: headlineStartY, size: headlineSize,
+      anchor: 'middle', weight: 700, lineHeight: 1.05, lines: headlineLines,
+      letterSpacing: -0.5
+    },
+    subtext: {
+      x: centerX, y: subtextStartY, size: subtextSize,
+      anchor: 'middle', weight: 400, lineHeight: 1.3, lines: subtextLines
+    },
+    tagline: null,
+    phone: null,
+    url: null,
+    gradient: {
+      stops: [
+        { offset: 0,   opacity: 0.45 },
+        { offset: 50,  opacity: 0.65 },
+        { offset: 100, opacity: 0.45 }
       ]
     }
   };
@@ -817,7 +895,7 @@ async function sampleLuminance(buffer, { left, top, width, height }) {
 // path) and produces the final poster PNG by adding the SVG overlay and the
 // logo. No Gemini calls — used by both generatePoster (with a freshly
 // generated bg) and the edit-text endpoint (with a previously saved bg).
-async function recomposePoster({ background, headline, subtext, tagline, template, language = 'english', size = 'square' }) {
+async function recomposePoster({ background, headline, subtext, tagline, template, language = 'english', size = 'square', fontSizeOverrides }) {
   const sizeCfg = SIZES[size] || SIZES.square;
   const lang = LANGUAGES[language] || LANGUAGES.english;
   const { width, height } = sizeCfg;
@@ -834,27 +912,45 @@ async function recomposePoster({ background, headline, subtext, tagline, templat
     tagline: (tagline || '').trim()
   };
 
-  const chosenTemplate = LAYOUT_TEMPLATES.includes(template) ? template : pickRandomTemplate();
+  // noBranding sizes (e.g. YouTube thumbnail) always use the youtube layout
+  // regardless of what template was requested.
+  let chosenTemplate;
+  if (sizeCfg.noBranding) {
+    chosenTemplate = 'youtube-thumb';
+  } else {
+    chosenTemplate = LAYOUT_TEMPLATES.includes(template) ? template : pickRandomTemplate();
+  }
 
   const layout = computePosterLayout({
     width, height,
     template: chosenTemplate,
     headline: copy.headline,
     subtext: copy.subtext,
-    tagline: copy.tagline
+    tagline: copy.tagline,
+    fontSizeOverrides
   });
 
-  // Sample luminance at the logo region to pick the dark/white logo variant.
-  const rawLuma = await sampleLuminance(bgResized, {
-    left: layout.logo.left,
-    top: layout.logo.top,
-    width: layout.logo.width,
-    height: layout.logo.height
-  });
+  // Pick the dark/white text+logo variant by sampling luminance. For branded
+  // layouts we sample the logo region; for unbranded (youtube) we sample the
+  // central text area.
+  let sampleRegion;
+  if (layout.logo) {
+    sampleRegion = {
+      left: layout.logo.left,
+      top: layout.logo.top,
+      width: layout.logo.width,
+      height: layout.logo.height
+    };
+  } else {
+    sampleRegion = {
+      left: Math.round(width * 0.1),
+      top: Math.round(height * 0.35),
+      width: Math.round(width * 0.8),
+      height: Math.round(height * 0.3)
+    };
+  }
+  const rawLuma = await sampleLuminance(bgResized, sampleRegion);
   const useWhiteLogo = rawLuma < 170;
-
-  const logoPath = useWhiteLogo ? LOGO_WHITE_PATH : LOGO_DARK_PATH;
-  const logoBuffer = await rasterizeLogo(logoPath, layout.logo.width);
 
   const overlaySvg = buildOverlaySvg({
     width, height,
@@ -865,11 +961,17 @@ async function recomposePoster({ background, headline, subtext, tagline, templat
     logoIsWhite: useWhiteLogo
   });
 
+  const composites = [{ input: Buffer.from(overlaySvg), top: 0, left: 0 }];
+
+  // Only branded layouts add the logo asset on top.
+  if (layout.logo) {
+    const logoPath = useWhiteLogo ? LOGO_WHITE_PATH : LOGO_DARK_PATH;
+    const logoBuffer = await rasterizeLogo(logoPath, layout.logo.width);
+    composites.push({ input: logoBuffer, top: layout.logo.top, left: layout.logo.left });
+  }
+
   const finalBuffer = await sharp(bgResized)
-    .composite([
-      { input: Buffer.from(overlaySvg), top: 0, left: 0 },
-      { input: logoBuffer, top: layout.logo.top, left: layout.logo.left }
-    ])
+    .composite(composites)
     .png({ quality: 95, compressionLevel: 8 })
     .toBuffer();
 
@@ -885,14 +987,18 @@ async function recomposePoster({ background, headline, subtext, tagline, templat
 }
 
 // ==================== MAIN POSTER BUILDER ====================
-async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template }) {
+async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template, fontSizeOverrides }) {
+  const sizeCfg = SIZES[size] || SIZES.square;
+
   // 1. Copy: use user-provided or generate with AI
   let copy = {
     headline: (headline || '').trim(),
     subtext: (subtext || '').trim(),
     tagline: (tagline || '').trim()
   };
-  if (!copy.headline || !copy.subtext) {
+  // YouTube thumbnails don't need subtext (title only), so only require headline.
+  const needsCopy = sizeCfg.noBranding ? !copy.headline : (!copy.headline || !copy.subtext);
+  if (needsCopy) {
     const aiCopy = await generatePosterCopy({ occasion, customPrompt, language });
     copy = {
       headline: copy.headline || aiCopy.headline,
@@ -912,7 +1018,8 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     tagline: copy.tagline,
     template,
     language,
-    size
+    size,
+    fontSizeOverrides
   });
 }
 

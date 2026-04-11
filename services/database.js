@@ -120,6 +120,7 @@ function addColumnIfMissing(table, column, definition) {
 }
 addColumnIfMissing('posters', 'template', 'TEXT');
 addColumnIfMissing('posters', 'background_url', 'TEXT');
+addColumnIfMissing('posters', 'font_sizes', 'TEXT'); // JSON: { headline, subtext, tagline }
 
 // Insert default settings
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');

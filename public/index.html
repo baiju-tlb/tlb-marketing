@@ -8,6 +8,7 @@
   <link rel="apple-touch-icon" href="/assets/images/fevicon.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script>
@@ -774,121 +775,126 @@
   </div>
 
   <!-- Create Poster Modal -->
-  <div id="modal-poster" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-2xl w-[640px] max-w-[95vw] max-h-[92vh] overflow-y-auto p-6 shadow-xl">
-      <div class="flex items-center justify-between mb-5">
+  <div id="modal-poster" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-2xl w-[680px] max-w-[95vw] max-h-[92vh] flex flex-col shadow-xl overflow-hidden">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
         <h3 class="text-lg font-semibold text-gray-800">Create Poster</h3>
         <button onclick="closeModal('modal-poster')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <div id="poster-form-body" class="space-y-4">
-        <!-- Occasion -->
-        <div>
-          <label class="block text-sm text-gray-500 mb-1">Occasion / Concept</label>
-          <select id="poster-occasion" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-            <option value="">Loading...</option>
-          </select>
-        </div>
-
-        <!-- Custom prompt / brief -->
-        <div>
-          <label class="block text-sm text-gray-500 mb-1">Your idea / brief <span class="text-gray-300 font-normal">(optional, include mood &amp; colours)</span></label>
-          <textarea id="poster-prompt" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm leading-relaxed" placeholder='e.g., "Vibrant festive pinks and golds", "Warm family moments at sunset", "Monochrome emerald green, editorial"'></textarea>
-          <p class="text-xs text-gray-400 mt-1">Want off-brand colours (vibrant, pastel, monochrome)? Say so here. Leave blank to stay on the TLB navy + teal palette.</p>
-        </div>
-
-        <!-- Size + Language -->
-        <div class="grid grid-cols-2 gap-3">
+      <!-- Scrollable body -->
+      <div class="flex-1 overflow-y-auto px-6 py-5">
+        <div id="poster-form-body" class="space-y-5">
+          <!-- Occasion -->
           <div>
-            <label class="block text-sm text-gray-500 mb-1">Size</label>
-            <select id="poster-size" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <label class="block text-sm text-gray-500 mb-1">Occasion / Concept</label>
+            <select id="poster-occasion" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
               <option value="">Loading...</option>
             </select>
           </div>
+
+          <!-- Custom prompt / brief -->
           <div>
-            <label class="block text-sm text-gray-500 mb-1">Language</label>
-            <select id="poster-language" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-              <option value="">Loading...</option>
-            </select>
+            <label class="block text-sm text-gray-500 mb-1">Your idea / brief <span class="text-gray-300 font-normal">(optional, include mood &amp; colours)</span></label>
+            <textarea id="poster-prompt" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm leading-relaxed" placeholder='e.g., "Vibrant festive pinks and golds", "Warm family moments at sunset", "Monochrome emerald green, editorial"'></textarea>
+            <p class="text-xs text-gray-400 mt-1">Want off-brand colours (vibrant, pastel, monochrome)? Say so here. Leave blank to stay on the TLB navy + teal palette.</p>
+          </div>
+
+          <!-- Size (selectable tags) -->
+          <div>
+            <label class="block text-sm text-gray-500 mb-2">Size</label>
+            <div id="poster-size-grid" class="flex flex-wrap gap-2">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Language (selectable tags) -->
+          <div>
+            <label class="block text-sm text-gray-500 mb-2">Language</label>
+            <div id="poster-language-grid" class="flex flex-wrap gap-2">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Background style -->
+          <div>
+            <label class="block text-sm text-gray-500 mb-2">Background Style</label>
+            <div id="poster-bg-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Layout (selectable tags) -->
+          <div>
+            <label class="block text-sm text-gray-500 mb-2">Layout</label>
+            <div id="poster-layout-grid" class="flex flex-wrap gap-2">
+              <!-- Populated by JS -->
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Auto picks a random layout per generation. Lock a specific one to stay consistent.</p>
+          </div>
+
+          <!-- Optional overrides -->
+          <details class="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2">
+            <summary class="text-sm text-gray-600 cursor-pointer py-1">Advanced: override copy (optional)</summary>
+            <div class="space-y-3 mt-3 mb-1">
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Headline</label>
+                <input type="text" id="poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Short, bold line (auto if empty)">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Subtext</label>
+                <input type="text" id="poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Supporting line (auto if empty)">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Tagline</label>
+                <input type="text" id="poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Small line above headline (auto if empty)">
+              </div>
+            </div>
+          </details>
+
+          <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+            <p class="text-xs text-blue-700 flex items-start gap-2">
+              <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+              Your poster will include the TLB logo, website, phone number, and brand colors automatically. Generation takes 20-40 seconds.
+            </p>
           </div>
         </div>
 
-        <!-- Background style -->
-        <div>
-          <label class="block text-sm text-gray-500 mb-2">Background Style</label>
-          <div id="poster-bg-grid" class="grid grid-cols-3 gap-2">
-            <!-- Populated by JS -->
+        <!-- Generating state (shown while the poster is being created) -->
+        <div id="poster-generating" class="hidden text-center py-6">
+          <div class="inline-flex items-center justify-center w-24 h-24 mb-4 relative">
+            <div class="absolute inset-0 rounded-full border-4 border-brand-100"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
+            <img src="/assets/images/tlb-dark-icon.png" alt="TLB" class="w-12 h-12 rounded-full object-cover">
           </div>
-        </div>
+          <h4 class="text-lg font-semibold text-gray-800">Generating your poster</h4>
+          <p class="text-sm text-gray-500 mt-1 mb-5">Crafting copy, painting the background, and composing the final image. This usually takes 20 to 40 seconds.</p>
 
-        <!-- Layout -->
-        <div>
-          <label class="block text-sm text-gray-500 mb-1">Layout</label>
-          <select id="poster-layout" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-            <option value="">Loading...</option>
-          </select>
-          <p class="text-xs text-gray-400 mt-1">Auto picks a random layout per generation. Lock a specific one to stay consistent.</p>
-        </div>
+          <!-- Progress dots -->
+          <div class="flex items-center justify-center gap-1.5 mb-6">
+            <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+            <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse" style="animation-delay: 0.2s"></span>
+            <span class="w-2 h-2 rounded-full bg-brand-300 animate-pulse" style="animation-delay: 0.4s"></span>
+          </div>
 
-        <!-- Optional overrides -->
-        <details class="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2">
-          <summary class="text-sm text-gray-600 cursor-pointer py-1">Advanced: override copy (optional)</summary>
-          <div class="space-y-3 mt-3 mb-1">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Headline</label>
-              <input type="text" id="poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Short, bold line (auto if empty)">
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Subtext</label>
-              <input type="text" id="poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Supporting line (auto if empty)">
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Tagline</label>
-              <input type="text" id="poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Small line above headline (auto if empty)">
+          <!-- Rotating "Did you know" marketing tip -->
+          <div class="bg-gradient-to-br from-brand-50 via-white to-teal-50 border border-brand-100 rounded-xl p-5 text-left shadow-sm">
+            <div class="flex items-start gap-3">
+              <div class="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="lightbulb" class="w-4 h-4 text-brand-600"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[11px] uppercase tracking-wider text-brand-600 font-semibold mb-1">Did you know?</p>
+                <p id="poster-tip" class="text-sm text-gray-700 leading-relaxed transition-opacity duration-300">&nbsp;</p>
+              </div>
             </div>
           </div>
-        </details>
-
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-          <p class="text-xs text-blue-700 flex items-start gap-2">
-            <i data-lucide="info" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
-            Your poster will include the TLB logo, website, phone number, and brand colors automatically. Generation takes 20-40 seconds.
-          </p>
         </div>
       </div>
 
-      <!-- Generating state (shown while the poster is being created) -->
-      <div id="poster-generating" class="hidden text-center py-6">
-        <div class="inline-flex items-center justify-center w-24 h-24 mb-4 relative">
-          <div class="absolute inset-0 rounded-full border-4 border-brand-100"></div>
-          <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
-          <img src="/assets/images/tlb-dark-icon.png" alt="TLB" class="w-12 h-12 rounded-full object-cover">
-        </div>
-        <h4 class="text-lg font-semibold text-gray-800">Generating your poster</h4>
-        <p class="text-sm text-gray-500 mt-1 mb-5">Crafting copy, painting the background, and composing the final image. This usually takes 20 to 40 seconds.</p>
-
-        <!-- Progress dots -->
-        <div class="flex items-center justify-center gap-1.5 mb-6">
-          <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
-          <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse" style="animation-delay: 0.2s"></span>
-          <span class="w-2 h-2 rounded-full bg-brand-300 animate-pulse" style="animation-delay: 0.4s"></span>
-        </div>
-
-        <!-- Rotating "Did you know" marketing tip -->
-        <div class="bg-gradient-to-br from-brand-50 via-white to-teal-50 border border-brand-100 rounded-xl p-5 text-left shadow-sm">
-          <div class="flex items-start gap-3">
-            <div class="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-              <i data-lucide="lightbulb" class="w-4 h-4 text-brand-600"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-[11px] uppercase tracking-wider text-brand-600 font-semibold mb-1">Did you know?</p>
-              <p id="poster-tip" class="text-sm text-gray-700 leading-relaxed transition-opacity duration-300">&nbsp;</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="poster-form-footer" class="flex justify-end gap-3 mt-5">
+      <!-- Sticky footer -->
+      <div id="poster-form-footer" class="flex-shrink-0 border-t border-gray-100 px-6 py-4 bg-white flex justify-end gap-3">
         <button onclick="closeModal('modal-poster')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
         <button onclick="submitPosterGenerate()" id="btn-poster-generate" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
           <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Poster
@@ -899,46 +905,77 @@
 
   <!-- Poster Preview Modal -->
   <div id="modal-poster-preview" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
-    <div class="bg-white rounded-2xl w-[720px] max-w-[95vw] max-h-[92vh] flex flex-col shadow-xl overflow-hidden">
+    <div class="bg-white rounded-2xl w-[1100px] max-w-[96vw] max-h-[92vh] flex flex-col shadow-xl overflow-hidden">
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
         <h3 class="text-lg font-semibold text-gray-800">Poster Preview</h3>
         <button onclick="closeModal('modal-poster-preview')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <!-- Scrollable body -->
-      <div class="flex-1 overflow-y-auto px-6 py-5">
-        <div class="bg-gray-100 rounded-xl p-4 flex items-center justify-center mb-4">
-          <img id="poster-preview-img" class="max-h-[60vh] max-w-full rounded-lg shadow-md" />
-        </div>
-
-        <!-- View mode meta -->
-        <div class="js-view-mode text-sm text-gray-600" id="poster-preview-meta"></div>
-
-        <!-- Edit mode form -->
-        <div class="js-edit-mode hidden">
-          <p class="text-xs text-gray-500 mb-3">Edit the copy and layout. The background image stays the same, so saving is fast (~2s).</p>
-          <div id="edit-poster-legacy-notice" class="hidden mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
-            This poster was created before in-place text editing was added. Click <strong>Regenerate</strong> once to capture a reusable background, then come back and edit the text.
+      <!-- Scrollable body: poster on the left, details/edit on the right -->
+      <div class="flex-1 overflow-y-auto">
+        <div class="flex flex-col md:flex-row gap-6 px-6 py-5">
+          <!-- Left: poster image -->
+          <div class="md:w-[58%] md:flex-shrink-0">
+            <div class="bg-gray-100 rounded-xl p-4 flex items-center justify-center">
+              <img id="poster-preview-img" class="max-h-[70vh] max-w-full rounded-lg shadow-md" />
+            </div>
           </div>
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Headline</label>
-              <input type="text" id="edit-poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Subtext</label>
-              <input type="text" id="edit-poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Tagline</label>
-              <input type="text" id="edit-poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Layout</label>
-              <select id="edit-poster-layout" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                <option value="">Loading...</option>
-              </select>
+
+          <!-- Right: details / edit form -->
+          <div class="md:flex-1 md:min-w-0">
+            <!-- View mode meta -->
+            <div class="js-view-mode text-sm text-gray-600" id="poster-preview-meta"></div>
+
+            <!-- Edit mode form -->
+            <div class="js-edit-mode hidden">
+              <p class="text-xs text-gray-500 mb-3">Edit the copy and layout. The background image stays the same, so saving is fast (~2s).</p>
+              <div id="edit-poster-legacy-notice" class="hidden mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                This poster was created before in-place text editing was added. Click <strong>Regenerate</strong> once to capture a reusable background, then come back and edit the text.
+              </div>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">Headline</label>
+                  <input type="text" id="edit-poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">Subtext</label>
+                  <input type="text" id="edit-poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">Tagline</label>
+                  <input type="text" id="edit-poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">Layout</label>
+                  <select id="edit-poster-layout" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Loading...</option>
+                  </select>
+                </div>
+
+                <!-- Manual font size overrides -->
+                <div class="pt-2 border-t border-gray-100">
+                  <p class="text-xs font-semibold text-gray-600 mb-2">Font sizes (px)</p>
+                  <p class="text-[11px] text-gray-400 mb-2">Current effective sizes for this layout. Edit to override, or clear a field to use the automatic size.</p>
+                  <div class="grid grid-cols-3 gap-2">
+                    <div>
+                      <label class="block text-[11px] text-gray-500 mb-1">Headline</label>
+                      <input type="number" min="8" max="400" id="edit-poster-headline-size" placeholder="auto"
+                        class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm">
+                    </div>
+                    <div>
+                      <label class="block text-[11px] text-gray-500 mb-1">Subtext</label>
+                      <input type="number" min="8" max="400" id="edit-poster-subtext-size" placeholder="auto"
+                        class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm">
+                    </div>
+                    <div>
+                      <label class="block text-[11px] text-gray-500 mb-1">Tagline</label>
+                      <input type="number" min="8" max="400" id="edit-poster-tagline-size" placeholder="auto"
+                        class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

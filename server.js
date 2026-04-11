@@ -698,6 +698,20 @@ fs.mkdirSync(POSTERS_DIR, { recursive: true });
 // Serve posters from the actual directory (which may be outside public/ in prod)
 app.use('/posters', express.static(POSTERS_DIR));
 
+// Clamp font size overrides to a sane range and drop empty values. Returns
+// an object suitable for passing to recomposePoster, or null if nothing to apply.
+function sanitizeFontSizes(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  for (const key of ['headline', 'subtext', 'tagline']) {
+    const v = Number(raw[key]);
+    if (Number.isFinite(v) && v > 0) {
+      out[key] = Math.max(8, Math.min(400, Math.round(v)));
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 app.get('/api/poster-options', (req, res) => {
   res.json({
     occasions: Object.entries(posterGenerator.OCCASIONS).map(([key, val]) => ({ value: key, label: val.label })),
@@ -722,16 +736,19 @@ app.get('/api/posters/:id', (req, res) => {
 });
 
 app.post('/api/posters/generate', async (req, res) => {
-  const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template } = req.body;
+  const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template, fontSizes } = req.body;
 
   // Store the user's *intent* (e.g. 'auto' or 'top-hero') so that a poster
   // generated with Auto re-randomises on regenerate while a locked one stays
   // locked. The resolved template is returned in the response for debugging.
   const templateIntent = template || 'auto';
+  const fontSizeOverrides = sanitizeFontSizes(fontSizes);
 
   try {
     const result = await posterGenerator.generatePoster({
-      occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template: templateIntent
+      occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline,
+      template: templateIntent,
+      fontSizeOverrides
     });
 
     // Save final image + raw background. The background is kept so users
@@ -746,8 +763,8 @@ app.post('/api/posters/generate', async (req, res) => {
     const backgroundUrl = `/posters/${bgFilename}`;
 
     const info = db.prepare(`
-      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height, template, background_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height, template, background_url, font_sizes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       occasion || 'custom',
       customPrompt || '',
@@ -761,7 +778,8 @@ app.post('/api/posters/generate', async (req, res) => {
       result.size.width,
       result.size.height,
       templateIntent,
-      backgroundUrl
+      backgroundUrl,
+      fontSizeOverrides ? JSON.stringify(fontSizeOverrides) : null
     );
 
     const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(info.lastInsertRowid);
@@ -862,6 +880,16 @@ app.post('/api/posters/:id/edit-text', async (req, res) => {
   }
 
   try {
+    // Merge font size overrides: prefer the caller's values, fall back to any
+    // previously-saved overrides on the poster. If the caller passes an empty
+    // object we interpret that as "clear overrides".
+    let fontSizeOverrides;
+    if (Object.prototype.hasOwnProperty.call(req.body, 'fontSizes')) {
+      fontSizeOverrides = sanitizeFontSizes(req.body.fontSizes);
+    } else if (poster.font_sizes) {
+      try { fontSizeOverrides = sanitizeFontSizes(JSON.parse(poster.font_sizes)); } catch {}
+    }
+
     const result = await posterGenerator.recomposePoster({
       background: bgPath,
       headline: req.body.headline ?? poster.headline,
@@ -869,7 +897,8 @@ app.post('/api/posters/:id/edit-text', async (req, res) => {
       tagline: req.body.tagline ?? poster.tagline,
       template: req.body.template ?? poster.template,
       language: req.body.language ?? poster.language,
-      size: poster.size
+      size: poster.size,
+      fontSizeOverrides
     });
 
     // Write the new final image under a new filename so the browser doesn't
@@ -890,11 +919,13 @@ app.post('/api/posters/:id/edit-text', async (req, res) => {
     db.prepare(`
       UPDATE posters SET
         headline = ?, subtext = ?, tagline = ?, template = ?, language = ?,
-        image_url = ?, updated_at = datetime('now')
+        image_url = ?, font_sizes = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
       result.copy.headline, result.copy.subtext, result.copy.tagline,
-      newTemplate, newLanguage, imageUrl, poster.id
+      newTemplate, newLanguage, imageUrl,
+      fontSizeOverrides ? JSON.stringify(fontSizeOverrides) : null,
+      poster.id
     );
 
     const updated = db.prepare('SELECT * FROM posters WHERE id = ?').get(poster.id);
