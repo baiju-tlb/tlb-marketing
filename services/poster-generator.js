@@ -785,12 +785,80 @@ async function sampleLuminance(buffer, { left, top, width, height }) {
   return 0.2126 * ch[0].mean + 0.7152 * ch[1].mean + 0.0722 * ch[2].mean;
 }
 
-// ==================== MAIN POSTER BUILDER ====================
-async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template }) {
+// ==================== COMPOSE FROM BACKGROUND ====================
+// Pure compositing step: takes a ready-to-use background image (Buffer or
+// path) and produces the final poster PNG by adding the SVG overlay and the
+// logo. No Gemini calls — used by both generatePoster (with a freshly
+// generated bg) and the edit-text endpoint (with a previously saved bg).
+async function recomposePoster({ background, headline, subtext, tagline, template, language = 'english', size = 'square' }) {
   const sizeCfg = SIZES[size] || SIZES.square;
   const lang = LANGUAGES[language] || LANGUAGES.english;
   const { width, height } = sizeCfg;
 
+  const bgInput = Buffer.isBuffer(background) ? background : fs.readFileSync(background);
+  // Defensive resize: cheap if already correct, safety net if it isn't.
+  const bgResized = await sharp(bgInput)
+    .resize(width, height, { fit: 'cover', position: 'center' })
+    .toBuffer();
+
+  const copy = {
+    headline: (headline || '').trim(),
+    subtext: (subtext || '').trim(),
+    tagline: (tagline || '').trim()
+  };
+
+  const chosenTemplate = LAYOUT_TEMPLATES.includes(template) ? template : pickRandomTemplate();
+
+  const layout = computePosterLayout({
+    width, height,
+    template: chosenTemplate,
+    headline: copy.headline,
+    subtext: copy.subtext,
+    tagline: copy.tagline
+  });
+
+  // Sample luminance at the logo region to pick the dark/white logo variant.
+  const rawLuma = await sampleLuminance(bgResized, {
+    left: layout.logo.left,
+    top: layout.logo.top,
+    width: layout.logo.width,
+    height: layout.logo.height
+  });
+  const useWhiteLogo = rawLuma < 170;
+
+  const logoPath = useWhiteLogo ? LOGO_WHITE_PATH : LOGO_DARK_PATH;
+  const logoBuffer = await rasterizeLogo(logoPath, layout.logo.width);
+
+  const overlaySvg = buildOverlaySvg({
+    width, height,
+    phone: TLB_PHONE,
+    website: TLB_WEBSITE,
+    fontFamily: lang.font,
+    layout,
+    logoIsWhite: useWhiteLogo
+  });
+
+  const finalBuffer = await sharp(bgResized)
+    .composite([
+      { input: Buffer.from(overlaySvg), top: 0, left: 0 },
+      { input: logoBuffer, top: layout.logo.top, left: layout.logo.left }
+    ])
+    .png({ quality: 95, compressionLevel: 8 })
+    .toBuffer();
+
+  return {
+    buffer: finalBuffer,
+    backgroundBuffer: bgResized,
+    copy,
+    size: sizeCfg,
+    mimeType: 'image/png',
+    logoVariant: useWhiteLogo ? 'white' : 'dark',
+    template: chosenTemplate
+  };
+}
+
+// ==================== MAIN POSTER BUILDER ====================
+async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template }) {
   // 1. Copy: use user-provided or generate with AI
   let copy = {
     headline: (headline || '').trim(),
@@ -806,74 +874,22 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     };
   }
 
-  // 2. Pick layout template. Random per generation unless the caller forces one
-  //    (useful for smoke tests and for a future "lock layout" UI toggle).
-  const chosenTemplate = LAYOUT_TEMPLATES.includes(template) ? template : pickRandomTemplate();
-
-  // 3. Background image from Gemini
+  // 2. Background image from Gemini
   const bgBuffer = await generateBackgroundImage({ occasion, customPrompt, backgroundStyle, size });
 
-  // 4. Resize background to exact poster size
-  const bgResized = await sharp(bgBuffer)
-    .resize(width, height, { fit: 'cover', position: 'center' })
-    .toBuffer();
-
-  // 5. Compute layout for the chosen template (wraps text, positions every block)
-  const layout = computePosterLayout({
-    width, height,
-    template: chosenTemplate,
+  // 3. Compose final image (text + logo over background) via the shared helper
+  return await recomposePoster({
+    background: bgBuffer,
     headline: copy.headline,
     subtext: copy.subtext,
-    tagline: copy.tagline
+    tagline: copy.tagline,
+    template,
+    language,
+    size
   });
-
-  // 6. Decide logo variant based on raw bg luminance at the logo region.
-  //    (We sample the raw bg, not the gradient-applied version, because the
-  //    gradient direction itself depends on the choice we are trying to make.)
-  const rawLuma = await sampleLuminance(bgResized, {
-    left: layout.logo.left,
-    top: layout.logo.top,
-    width: layout.logo.width,
-    height: layout.logo.height
-  });
-  // Bg is considered "light" if clearly bright. We skew slightly toward using
-  // the white logo because our gradient darkens ambiguous regions.
-  const useWhiteLogo = rawLuma < 170;
-
-  // 7. Rasterise the chosen logo at the target pixel width
-  const logoPath = useWhiteLogo ? LOGO_WHITE_PATH : LOGO_DARK_PATH;
-  const logoBuffer = await rasterizeLogo(logoPath, layout.logo.width);
-
-  // 8. Build the overlay SVG (gradient + text + meta line).
-  const overlaySvg = buildOverlaySvg({
-    width, height,
-    phone: TLB_PHONE,
-    website: TLB_WEBSITE,
-    fontFamily: lang.font,
-    layout,
-    logoIsWhite: useWhiteLogo
-  });
-
-  // 9. Final composite: bg -> overlay -> logo
-  const finalBuffer = await sharp(bgResized)
-    .composite([
-      { input: Buffer.from(overlaySvg), top: 0, left: 0 },
-      { input: logoBuffer, top: layout.logo.top, left: layout.logo.left }
-    ])
-    .png({ quality: 95, compressionLevel: 8 })
-    .toBuffer();
-
-  return {
-    buffer: finalBuffer,
-    copy,
-    size: sizeCfg,
-    mimeType: 'image/png',
-    logoVariant: useWhiteLogo ? 'white' : 'dark',
-    template: chosenTemplate
-  };
 }
 
 module.exports = {
   OCCASIONS, LANGUAGES, SIZES, BG_STYLES, LAYOUTS, LAYOUT_TEMPLATES, TLB_BRAND,
-  generatePoster, generatePosterCopy, generateBackgroundImage
+  generatePoster, generatePosterCopy, generateBackgroundImage, recomposePoster
 };

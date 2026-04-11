@@ -38,10 +38,15 @@
     <!-- Sidebar -->
     <aside id="sidebar" class="w-60 bg-white border-r border-gray-200 fixed h-screen flex flex-col z-50 transition-transform duration-200 -translate-x-full lg:translate-x-0">
       <div class="p-4 border-b border-gray-100">
-        <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="h-9 w-auto">
+        <a onclick="navigate('home'); closeSidebarMobile()" class="cursor-pointer block">
+          <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="h-9 w-auto">
+        </a>
         <p class="text-xs text-gray-400 tracking-wide uppercase mt-1.5">Marketing Hub</p>
       </div>
       <nav class="flex-1 py-4">
+        <a onclick="navigate('home'); closeSidebarMobile()" class="nav-link flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="home">
+          <i data-lucide="home" class="w-4 h-4"></i> Home
+        </a>
         <a onclick="navigate('dashboard'); closeSidebarMobile()" class="nav-link active flex items-center gap-3 px-5 py-2.5 text-sm cursor-pointer" data-page="dashboard">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
         </a>
@@ -85,8 +90,51 @@
     <!-- Main -->
     <main class="flex-1 lg:ml-60 pt-14 lg:pt-0">
 
+      <!-- ========== HOME PAGE (product picker) ========== -->
+      <div id="page-home" class="page p-4 sm:p-6 lg:p-8">
+        <div class="max-w-5xl mx-auto pt-6 sm:pt-12">
+          <div class="text-center mb-10">
+            <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="h-12 w-auto mx-auto mb-5">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800">TLB Marketing Hub</h1>
+            <p class="text-sm sm:text-base text-gray-500 mt-2">Pick a workflow to get started</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Card 1: LinkedIn Posting Automation -->
+            <div onclick="navigate('dashboard')" class="group cursor-pointer bg-white rounded-2xl border border-gray-100 p-7 shadow-sm hover:shadow-lg hover:border-brand-200 transition-all">
+              <div class="flex items-start justify-between mb-5">
+                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-md">
+                  <i data-lucide="linkedin" class="w-7 h-7"></i>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-700 uppercase tracking-wide">Beta</span>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-800 mb-1.5">LinkedIn Posting Automation</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Auto fetch land news, draft branded LinkedIn posts and articles, schedule and publish to your company page.</p>
+              <div class="mt-5 flex items-center gap-1.5 text-sm font-medium text-brand-600 group-hover:gap-2.5 transition-all">
+                Open workflow <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              </div>
+            </div>
+
+            <!-- Card 2: Post Creation -->
+            <div onclick="navigate('post-creation')" class="group cursor-pointer bg-white rounded-2xl border border-gray-100 p-7 shadow-sm hover:shadow-lg hover:border-pink-200 transition-all">
+              <div class="flex items-start justify-between mb-5">
+                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center text-white shadow-md">
+                  <i data-lucide="image" class="w-7 h-7"></i>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-gradient-to-r from-pink-500 to-orange-500 text-white uppercase tracking-wide">New</span>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-800 mb-1.5">Post Creation</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Branded posters for Instagram, Facebook, LinkedIn and more. Generate visuals from a brief in seconds.</p>
+              <div class="mt-5 flex items-center gap-1.5 text-sm font-medium text-pink-600 group-hover:gap-2.5 transition-all">
+                Create a poster <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ========== DASHBOARD PAGE ========== -->
-      <div id="page-dashboard" class="page p-4 sm:p-6 lg:p-8">
+      <div id="page-dashboard" class="page p-4 sm:p-6 lg:p-8 hidden">
         <div class="flex items-center justify-between mb-8">
           <div>
             <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
@@ -855,15 +903,53 @@
       <div class="bg-gray-100 rounded-xl p-4 flex items-center justify-center mb-4">
         <img id="poster-preview-img" class="max-h-[60vh] max-w-full rounded-lg shadow-md" />
       </div>
-      <div class="text-sm text-gray-600 mb-4" id="poster-preview-meta"></div>
-      <div class="flex justify-end gap-3 flex-wrap">
-        <button onclick="closeModal('modal-poster-preview')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
-        <button onclick="regenerateCurrentPoster()" id="btn-poster-regen" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
-          <i data-lucide="refresh-cw" class="w-4 h-4"></i> Regenerate
-        </button>
-        <button onclick="downloadCurrentPoster()" class="flex items-center gap-2 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
-          <i data-lucide="download" class="w-4 h-4"></i> Download
-        </button>
+
+      <!-- View mode: meta + action buttons -->
+      <div id="preview-view-mode">
+        <div class="text-sm text-gray-600 mb-4" id="poster-preview-meta"></div>
+        <div class="flex justify-end gap-3 flex-wrap">
+          <button onclick="closeModal('modal-poster-preview')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
+          <button onclick="enterEditTextMode()" id="btn-poster-edit-text" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
+            <i data-lucide="type" class="w-4 h-4"></i> Edit Text
+          </button>
+          <button onclick="regenerateCurrentPoster()" id="btn-poster-regen" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Regenerate
+          </button>
+          <button onclick="downloadCurrentPoster()" class="flex items-center gap-2 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+            <i data-lucide="download" class="w-4 h-4"></i> Download
+          </button>
+        </div>
+      </div>
+
+      <!-- Edit Text mode: inline editable copy + save/cancel -->
+      <div id="preview-edit-mode" class="hidden">
+        <p class="text-xs text-gray-500 mb-3">Edit the copy and layout. The background image stays the same, so saving is fast (~2s).</p>
+        <div class="space-y-3 mb-4">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Headline</label>
+            <input type="text" id="edit-poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Subtext</label>
+            <input type="text" id="edit-poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Tagline</label>
+            <input type="text" id="edit-poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Layout</label>
+            <select id="edit-poster-layout" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 flex-wrap">
+          <button onclick="cancelEditTextMode()" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+          <button onclick="saveEditedText()" id="btn-save-edit-text" class="flex items-center gap-2 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+            <i data-lucide="save" class="w-4 h-4"></i> Save Changes
+          </button>
+        </div>
       </div>
     </div>
   </div>

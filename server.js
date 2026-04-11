@@ -120,6 +120,14 @@ app.use(authMiddleware);
 // Serve dashboard (protected)
 app.use(express.static('public'));
 
+// SPA fallback for client-side routes (e.g. /post-creation, /dashboard, etc.)
+const SPA_ROUTES = ['/dashboard', '/news', '/posts', '/articles', '/post-creation', '/calendar', '/settings'];
+SPA_ROUTES.forEach(route => {
+  app.get(route, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+});
+
 // ==================== ARTICLES ====================
 
 app.get('/api/articles', (req, res) => {
@@ -726,15 +734,20 @@ app.post('/api/posters/generate', async (req, res) => {
       occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template: templateIntent
     });
 
-    // Save to disk
-    const filename = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-    const filePath = path.join(POSTERS_DIR, filename);
-    fs.writeFileSync(filePath, result.buffer);
+    // Save final image + raw background. The background is kept so users
+    // can later edit just the text without re-running Gemini.
+    const stem = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const filename = `${stem}.png`;
+    fs.writeFileSync(path.join(POSTERS_DIR, filename), result.buffer);
     const imageUrl = `/posters/${filename}`;
 
+    const bgFilename = `${stem}-bg.png`;
+    fs.writeFileSync(path.join(POSTERS_DIR, bgFilename), result.backgroundBuffer);
+    const backgroundUrl = `/posters/${bgFilename}`;
+
     const info = db.prepare(`
-      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height, template)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height, template, background_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       occasion || 'custom',
       customPrompt || '',
@@ -747,7 +760,8 @@ app.post('/api/posters/generate', async (req, res) => {
       imageUrl,
       result.size.width,
       result.size.height,
-      templateIntent
+      templateIntent,
+      backgroundUrl
     );
 
     const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(info.lastInsertRowid);
@@ -790,28 +804,36 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
 
     const result = await posterGenerator.generatePoster(opts);
 
-    // Remove old file
+    // Remove old final and background files
     if (poster.image_url) {
       const oldName = path.basename(poster.image_url);
       try { fs.unlinkSync(path.join(POSTERS_DIR, oldName)); } catch {}
     }
+    if (poster.background_url) {
+      const oldBg = path.basename(poster.background_url);
+      try { fs.unlinkSync(path.join(POSTERS_DIR, oldBg)); } catch {}
+    }
 
-    const filename = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-    const filePath = path.join(POSTERS_DIR, filename);
-    fs.writeFileSync(filePath, result.buffer);
+    const stem = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const filename = `${stem}.png`;
+    fs.writeFileSync(path.join(POSTERS_DIR, filename), result.buffer);
     const imageUrl = `/posters/${filename}`;
+
+    const bgFilename = `${stem}-bg.png`;
+    fs.writeFileSync(path.join(POSTERS_DIR, bgFilename), result.backgroundBuffer);
+    const backgroundUrl = `/posters/${bgFilename}`;
 
     db.prepare(`
       UPDATE posters SET
         occasion = ?, custom_prompt = ?, background_style = ?, size = ?, language = ?,
         headline = ?, subtext = ?, tagline = ?, image_url = ?, width = ?, height = ?,
-        template = ?, updated_at = datetime('now')
+        template = ?, background_url = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
       opts.occasion, opts.customPrompt, opts.backgroundStyle, opts.size, opts.language,
       result.copy.headline, result.copy.subtext, result.copy.tagline,
       imageUrl, result.size.width, result.size.height,
-      opts.template || 'auto', poster.id
+      opts.template || 'auto', backgroundUrl, poster.id
     );
 
     const updated = db.prepare('SELECT * FROM posters WHERE id = ?').get(poster.id);
@@ -822,12 +844,77 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
   }
 });
 
+// Re-render just the text (and optionally the layout/language) on top of the
+// previously saved background. Fast (no Gemini calls) and used by the inline
+// "Edit Text" mode in the preview modal.
+app.post('/api/posters/:id/edit-text', async (req, res) => {
+  const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
+  if (!poster) return res.status(404).json({ error: 'Poster not found' });
+  if (!poster.background_url) {
+    return res.status(400).json({
+      error: 'This poster was created before text editing was supported. Regenerate it once to enable text editing.'
+    });
+  }
+
+  const bgPath = path.join(POSTERS_DIR, path.basename(poster.background_url));
+  if (!fs.existsSync(bgPath)) {
+    return res.status(400).json({ error: 'Background file is missing on disk. Regenerate this poster.' });
+  }
+
+  try {
+    const result = await posterGenerator.recomposePoster({
+      background: bgPath,
+      headline: req.body.headline ?? poster.headline,
+      subtext: req.body.subtext ?? poster.subtext,
+      tagline: req.body.tagline ?? poster.tagline,
+      template: req.body.template ?? poster.template,
+      language: req.body.language ?? poster.language,
+      size: poster.size
+    });
+
+    // Write the new final image under a new filename so the browser doesn't
+    // serve a stale cached copy. The background file stays as-is.
+    const stem = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const filename = `${stem}.png`;
+    fs.writeFileSync(path.join(POSTERS_DIR, filename), result.buffer);
+    const imageUrl = `/posters/${filename}`;
+
+    if (poster.image_url) {
+      const oldName = path.basename(poster.image_url);
+      try { fs.unlinkSync(path.join(POSTERS_DIR, oldName)); } catch {}
+    }
+
+    const newTemplate = req.body.template ?? poster.template;
+    const newLanguage = req.body.language ?? poster.language;
+
+    db.prepare(`
+      UPDATE posters SET
+        headline = ?, subtext = ?, tagline = ?, template = ?, language = ?,
+        image_url = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      result.copy.headline, result.copy.subtext, result.copy.tagline,
+      newTemplate, newLanguage, imageUrl, poster.id
+    );
+
+    const updated = db.prepare('SELECT * FROM posters WHERE id = ?').get(poster.id);
+    res.json({ success: true, poster: updated });
+  } catch (err) {
+    console.error('Poster edit-text error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/posters/:id', (req, res) => {
   const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
   if (!poster) return res.status(404).json({ error: 'Poster not found' });
   if (poster.image_url) {
     const name = path.basename(poster.image_url);
     try { fs.unlinkSync(path.join(POSTERS_DIR, name)); } catch {}
+  }
+  if (poster.background_url) {
+    const bgName = path.basename(poster.background_url);
+    try { fs.unlinkSync(path.join(POSTERS_DIR, bgName)); } catch {}
   }
   db.prepare('DELETE FROM posters WHERE id = ?').run(req.params.id);
   res.json({ success: true });

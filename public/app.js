@@ -1,5 +1,28 @@
 // ==================== STATE ====================
-let currentPage = 'dashboard';
+let currentPage = 'home';
+
+// URL <-> page mapping
+const PAGE_TO_PATH = {
+  home: '/',
+  dashboard: '/dashboard',
+  news: '/news',
+  posts: '/posts',
+  'write-article': '/articles',
+  'post-creation': '/post-creation',
+  posters: '/post-creation', // alias
+  calendar: '/calendar',
+  settings: '/settings'
+};
+const PATH_TO_PAGE = {
+  '/': 'home',
+  '/dashboard': 'dashboard',
+  '/news': 'news',
+  '/posts': 'posts',
+  '/articles': 'write-article',
+  '/post-creation': 'post-creation',
+  '/calendar': 'calendar',
+  '/settings': 'settings'
+};
 let currentPostFilter = '';
 let selectedArticleId = null;
 let editingPostId = null;
@@ -8,16 +31,33 @@ let previewPostContent = '';
 const API = '';
 
 // ==================== NAVIGATION ====================
-function navigate(page) {
+function navigate(page, opts = {}) {
+  // Alias: post-creation routes to the posters page div
+  const pageDivId = page === 'post-creation' ? 'page-posters' : `page-${page}`;
+
   currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-  document.getElementById(`page-${page}`).classList.remove('hidden');
+  const target = document.getElementById(pageDivId);
+  if (target) target.classList.remove('hidden');
 
+  // Toggle sidebar visibility — home is full-bleed, no sidebar
+  const sidebar = document.getElementById('sidebar');
+  const main = document.querySelector('main');
+  if (page === 'home') {
+    sidebar.classList.add('lg:hidden');
+    main.classList.remove('lg:ml-60');
+  } else {
+    sidebar.classList.remove('lg:hidden');
+    main.classList.add('lg:ml-60');
+  }
+
+  // Sidebar active state
   document.querySelectorAll('.nav-link').forEach(link => {
     link.classList.remove('text-brand-600', 'bg-brand-50', 'font-medium');
     link.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-50');
   });
-  const activeLink = document.querySelector(`.nav-link[data-page="${page}"]`);
+  const navKey = page === 'post-creation' ? 'posters' : page;
+  const activeLink = document.querySelector(`.nav-link[data-page="${navKey}"]`);
   if (activeLink) {
     activeLink.classList.add('text-brand-600', 'bg-brand-50', 'font-medium');
     activeLink.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-50');
@@ -28,12 +68,25 @@ function navigate(page) {
   if (page === 'news') loadArticles();
   if (page === 'posts') loadPosts();
   if (page === 'write-article') loadLinkedinArticles();
-  if (page === 'posters') loadPosters();
+  if (page === 'posters' || page === 'post-creation') loadPosters();
   if (page === 'calendar') loadCalendar();
   if (page === 'settings') loadSettings();
 
+  // Update URL (unless triggered by popstate)
+  if (!opts.fromPop) {
+    const path = PAGE_TO_PATH[page] || '/';
+    if (window.location.pathname !== path) {
+      history.pushState({ page }, '', path);
+    }
+  }
+
   lucide.createIcons();
 }
+
+window.addEventListener('popstate', () => {
+  const page = PATH_TO_PAGE[window.location.pathname] || 'home';
+  navigate(page, { fromPop: true });
+});
 
 // ==================== TOAST ====================
 function showToast(message, type = 'success') {
@@ -1600,7 +1653,8 @@ async function openPosterPreview(id, preloaded) {
   const poster = preloaded || await api(`/api/posters/${id}`);
   if (poster.error) return showToast(poster.error, 'error');
   currentPreviewPoster = poster;
-  document.getElementById('poster-preview-img').src = poster.image_url;
+  cancelEditTextMode(); // always open in view mode
+  document.getElementById('poster-preview-img').src = poster.image_url + '?t=' + Date.now();
   const occasionLabel = (posterOptions?.occasions.find(o => o.value === poster.occasion)?.label) || poster.occasion;
   const sizeLabel = (posterOptions?.sizes.find(s => s.value === poster.size)?.label) || poster.size;
   const langLabel = (posterOptions?.languages.find(l => l.value === poster.language)?.label) || poster.language;
@@ -1671,6 +1725,63 @@ function downloadCurrentPoster() {
   triggerImageDownload(currentPreviewPoster.image_url, `tlb-poster-${currentPreviewPoster.id}.png`);
 }
 
+// ==================== EDIT POSTER TEXT (no bg regen) ====================
+function enterEditTextMode() {
+  if (!currentPreviewPoster) return;
+  const p = currentPreviewPoster;
+  if (!p.background_url) {
+    showToast('This poster was created before text editing was supported. Regenerate it once to enable editing.', 'info');
+    return;
+  }
+  document.getElementById('edit-poster-headline').value = p.headline || '';
+  document.getElementById('edit-poster-subtext').value = p.subtext || '';
+  document.getElementById('edit-poster-tagline').value = p.tagline || '';
+
+  // Populate layout dropdown
+  const layoutSel = document.getElementById('edit-poster-layout');
+  const layouts = (posterOptions && posterOptions.layouts) || [{ value: 'auto', label: 'Auto / Surprise me' }];
+  layoutSel.innerHTML = layouts.map(l => `<option value="${l.value}">${escHtml(l.label)}</option>`).join('');
+  layoutSel.value = p.template || 'auto';
+
+  document.getElementById('preview-view-mode').classList.add('hidden');
+  document.getElementById('preview-edit-mode').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function cancelEditTextMode() {
+  const editEl = document.getElementById('preview-edit-mode');
+  const viewEl = document.getElementById('preview-view-mode');
+  if (editEl) editEl.classList.add('hidden');
+  if (viewEl) viewEl.classList.remove('hidden');
+}
+
+async function saveEditedText() {
+  if (!currentPreviewPoster) return;
+  const id = currentPreviewPoster.id;
+  const btn = document.getElementById('btn-save-edit-text');
+  const payload = {
+    headline: document.getElementById('edit-poster-headline').value.trim(),
+    subtext: document.getElementById('edit-poster-subtext').value.trim(),
+    tagline: document.getElementById('edit-poster-tagline').value.trim(),
+    template: document.getElementById('edit-poster-layout').value || 'auto'
+  };
+  if (!payload.headline) return showToast('Headline cannot be empty', 'error');
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...'; }
+  try {
+    const result = await api(`/api/posters/${id}/edit-text`, { method: 'POST', body: payload });
+    if (result.error) throw new Error(result.error);
+    showToast('Poster updated', 'success');
+    loadPosters();
+    openPosterPreview(id, result.poster); // refreshes image + meta + back to view mode
+  } catch (err) {
+    showToast(err.message || 'Save failed', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save Changes'; }
+    lucide.createIcons();
+  }
+}
+
 async function triggerImageDownload(url, filename) {
   try {
     const res = await fetch(url);
@@ -1691,5 +1802,8 @@ async function triggerImageDownload(url, filename) {
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
-  loadDashboard();
+  const initialPage = PATH_TO_PAGE[window.location.pathname] || 'home';
+  navigate(initialPage, { fromPop: true });
+  // Make sure history state has a page so back button works
+  history.replaceState({ page: initialPage }, '', PAGE_TO_PATH[initialPage] || '/');
 });
