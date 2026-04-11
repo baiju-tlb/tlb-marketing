@@ -24,9 +24,9 @@
 
     <!-- Mobile Top Bar -->
     <div class="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-40 flex items-center justify-between px-4 py-3">
-      <div class="flex items-center gap-2">
+      <a onclick="navigate('home')" class="flex items-center gap-2 cursor-pointer">
         <img src="https://www.thelandbankers.com/assets/images/tlb-logo.png" alt="TLB" class="h-8 w-auto">
-      </div>
+      </a>
       <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-100">
         <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
       </button>
@@ -103,9 +103,7 @@
             <!-- Card 1: LinkedIn Posting Automation -->
             <div onclick="navigate('dashboard')" class="group cursor-pointer bg-white rounded-2xl border border-gray-100 p-7 shadow-sm hover:shadow-lg hover:border-brand-200 transition-all">
               <div class="flex items-start justify-between mb-5">
-                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-md">
-                  <i data-lucide="linkedin" class="w-7 h-7"></i>
-                </div>
+                <img src="/assets/images/likedin-icon.png" alt="LinkedIn" class="w-14 h-14 rounded-xl shadow-md">
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-700 uppercase tracking-wide">Beta</span>
               </div>
               <h3 class="text-lg font-semibold text-gray-800 mb-1.5">LinkedIn Posting Automation</h3>
@@ -265,19 +263,27 @@
 
       <!-- ========== POSTERS PAGE ========== -->
       <div id="page-posters" class="page p-4 sm:p-6 lg:p-8 hidden">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-800">Posters</h2>
-            <p class="text-sm text-gray-400 mt-1">Branded posters for Instagram, Facebook, LinkedIn & more</p>
+        <div class="max-w-6xl mx-auto">
+          <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <div class="flex items-center gap-4">
+              <button onclick="navigate('home')" class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-brand-600 transition" title="Back to home">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Home
+              </button>
+              <div class="h-6 w-px bg-gray-200"></div>
+              <div>
+                <h2 class="text-2xl font-bold text-gray-800">Post Creation</h2>
+                <p class="text-sm text-gray-400 mt-1">Branded posters for Instagram, Facebook, LinkedIn & more</p>
+              </div>
+            </div>
+            <button onclick="openPosterModal()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+              <i data-lucide="plus" class="w-4 h-4"></i> Create Poster
+            </button>
           </div>
-          <button onclick="openPosterModal()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
-            <i data-lucide="plus" class="w-4 h-4"></i> Create Poster
-          </button>
-        </div>
 
-        <div id="posters-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          <div class="col-span-full bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
-            No posters yet. Click "Create Poster" to design your first one.
+          <div id="posters-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="col-span-full bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
+              No posters yet. Click "Create Poster" to design your first one.
+            </div>
           </div>
         </div>
       </div>

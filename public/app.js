@@ -40,10 +40,12 @@ function navigate(page, opts = {}) {
   const target = document.getElementById(pageDivId);
   if (target) target.classList.remove('hidden');
 
-  // Toggle sidebar visibility — home is full-bleed, no sidebar
+  // Toggle sidebar visibility — home and post-creation are full-bleed
+  // (left nav belongs to the LinkedIn Automation flow only)
   const sidebar = document.getElementById('sidebar');
   const main = document.querySelector('main');
-  if (page === 'home') {
+  const STANDALONE_PAGES = ['home', 'post-creation'];
+  if (STANDALONE_PAGES.includes(page)) {
     sidebar.classList.add('lg:hidden');
     main.classList.remove('lg:ml-60');
   } else {
