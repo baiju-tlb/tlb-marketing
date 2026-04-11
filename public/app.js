@@ -1445,6 +1445,100 @@ function posterNewBadge(value) {
     : '';
 }
 
+// Short one-line descriptions for each layout option in the Create Poster
+// modal. Used alongside the mini wireframe to make each layout self-evident.
+const POSTER_LAYOUT_META = {
+  'auto':           { desc: 'Rotate through all layouts' },
+  'center-classic': { desc: 'Text centered, balanced' },
+  'bottom-left':    { desc: 'Anchored bottom-left' },
+  'top-hero':       { desc: 'Big headline up top' },
+  'minimal-center': { desc: 'Just the headline' }
+};
+
+// Tiny SVG wireframes that mirror each layout's text placement. Teal bars
+// represent the headline, grey bars represent subtext/tagline, the dot is
+// the logo. Kept minimal so the layout's shape reads instantly at thumbnail
+// size — this is the main reason this section can't use the plain pill
+// renderer used elsewhere.
+function layoutWireframeSvg(value) {
+  const TEAL = '#30B0A4';
+  const GRAY_DARK = '#9CA3AF';
+  const GRAY_LIGHT = '#D1D5DB';
+  const LOGO = '#6B7280';
+  const frame = `<rect x="2" y="2" width="96" height="96" rx="6" ry="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>`;
+
+  switch (value) {
+    case 'center-classic':
+      return `<svg viewBox="0 0 100 100" class="w-full h-full" aria-hidden="true">
+        ${frame}
+        <rect x="20" y="36" width="60" height="9" rx="1.5" fill="${TEAL}"/>
+        <rect x="26" y="49" width="48" height="3" rx="1" fill="${GRAY_DARK}"/>
+        <rect x="32" y="55" width="36" height="2.5" rx="1" fill="${GRAY_LIGHT}"/>
+        <circle cx="50" cy="85" r="3" fill="${LOGO}"/>
+      </svg>`;
+    case 'bottom-left':
+      return `<svg viewBox="0 0 100 100" class="w-full h-full" aria-hidden="true">
+        ${frame}
+        <rect x="10" y="54" width="58" height="9" rx="1.5" fill="${TEAL}"/>
+        <rect x="10" y="67" width="46" height="3" rx="1" fill="${GRAY_DARK}"/>
+        <rect x="10" y="74" width="36" height="2.5" rx="1" fill="${GRAY_LIGHT}"/>
+        <circle cx="14" cy="88" r="3" fill="${LOGO}"/>
+      </svg>`;
+    case 'top-hero':
+      return `<svg viewBox="0 0 100 100" class="w-full h-full" aria-hidden="true">
+        ${frame}
+        <rect x="14" y="14" width="72" height="10" rx="1.5" fill="${TEAL}"/>
+        <rect x="20" y="28" width="60" height="3" rx="1" fill="${GRAY_DARK}"/>
+        <rect x="26" y="34" width="48" height="2.5" rx="1" fill="${GRAY_LIGHT}"/>
+        <circle cx="50" cy="86" r="3" fill="${LOGO}"/>
+      </svg>`;
+    case 'minimal-center':
+      return `<svg viewBox="0 0 100 100" class="w-full h-full" aria-hidden="true">
+        ${frame}
+        <rect x="12" y="43" width="76" height="14" rx="2" fill="${TEAL}"/>
+        <circle cx="50" cy="86" r="2.5" fill="${LOGO}"/>
+      </svg>`;
+    case 'auto':
+    default:
+      return `<svg viewBox="0 0 100 100" class="w-full h-full" aria-hidden="true">
+        <rect x="3" y="3" width="94" height="94" rx="6" ry="6" fill="#F9FAFB" stroke="${TEAL}" stroke-width="1.5" stroke-dasharray="3 2"/>
+        <path d="M50 30 L53 42 L65 45 L53 48 L50 60 L47 48 L35 45 L47 42 Z" fill="${TEAL}"/>
+        <rect x="25" y="70" width="50" height="3" rx="1" fill="${GRAY_DARK}"/>
+        <rect x="32" y="78" width="36" height="2.5" rx="1" fill="${GRAY_LIGHT}"/>
+      </svg>`;
+  }
+}
+
+function renderPosterLayoutCards(layouts) {
+  const grid = document.getElementById('poster-layout-grid');
+  if (!grid) return;
+  const activeCls = 'border-brand-500 bg-brand-50 ring-1 ring-brand-200';
+  const idleCls = 'border-gray-200 hover:border-gray-300 hover:bg-gray-50';
+  const baseCls = 'poster-layout-card text-center p-1.5 rounded-lg border transition w-full';
+  // Compact 5-across grid (3 on mobile) so all layouts fit in one row on desktop
+  grid.className = 'grid grid-cols-3 sm:grid-cols-5 gap-1.5';
+  grid.innerHTML = layouts.map(item => {
+    const desc = (POSTER_LAYOUT_META[item.value] || {}).desc || '';
+    const active = item.value === posterSelectedLayout;
+    return `<button type="button" data-value="${item.value}" title="${escHtml(desc)}"
+      class="${baseCls} ${active ? activeCls : idleCls}">
+      <div class="w-full mb-1 overflow-hidden rounded flex items-center justify-center">
+        <div class="w-12 h-12">${layoutWireframeSvg(item.value)}</div>
+      </div>
+      <div class="text-[10px] font-medium text-gray-700 leading-tight truncate">${escHtml(item.label)}</div>
+    </button>`;
+  }).join('');
+  grid.querySelectorAll('.poster-layout-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      posterSelectedLayout = btn.dataset.value;
+      grid.querySelectorAll('.poster-layout-card').forEach(b => {
+        const isActive = b.dataset.value === posterSelectedLayout;
+        b.className = `${baseCls} ${isActive ? activeCls : idleCls}`;
+      });
+    });
+  });
+}
+
 // Shared renderer for the tag-style selectable groups in the Create Poster
 // modal. `items` is an array of { value, label }, `getSelected` returns the
 // currently selected value, and `onSelect` is called with the new value.
@@ -1635,14 +1729,9 @@ async function openPosterModal() {
     (v) => { posterSelectedLanguage = v; }
   );
 
-  // Layout (tag buttons)
+  // Layout (visual thumbnail cards — labels alone weren't self-explanatory)
   const layouts = posterOptions.layouts || [{ value: 'auto', label: 'Auto / Surprise me' }];
-  renderPosterTagGroup(
-    'poster-layout-grid',
-    layouts,
-    () => posterSelectedLayout,
-    (v) => { posterSelectedLayout = v; }
-  );
+  renderPosterLayoutCards(layouts);
 
   // Background style grid (slightly larger card-style buttons)
   const bgGrid = document.getElementById('poster-bg-grid');
