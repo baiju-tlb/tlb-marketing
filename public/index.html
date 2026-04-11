@@ -9,6 +9,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script>
@@ -875,10 +876,15 @@
 
         <!-- Generating state (shown while the poster is being created) -->
         <div id="poster-generating" class="hidden text-center py-6">
-          <div class="inline-flex items-center justify-center w-24 h-24 mb-4 relative">
-            <div class="absolute inset-0 rounded-full border-4 border-brand-100"></div>
-            <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
-            <img src="/assets/images/tlb-dark-icon.png" alt="TLB" class="w-12 h-12 rounded-full object-cover">
+          <div class="flex items-center justify-center mb-4">
+            <dotlottie-player
+              src="/assets/animations/typing.lottie"
+              autoplay
+              loop
+              background="transparent"
+              speed="1"
+              style="width: 200px; height: 200px;">
+            </dotlottie-player>
           </div>
           <h4 class="text-lg font-semibold text-gray-800">Generating your poster</h4>
           <p class="text-sm text-gray-500 mt-1 mb-5">Crafting copy, painting the background, and composing the final image. This usually takes 20 to 40 seconds.</p>
