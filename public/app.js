@@ -1729,6 +1729,7 @@ async function openPosterPreview(id, preloaded) {
   const poster = preloaded || await api(`/api/posters/${id}`);
   if (poster.error) return showToast(poster.error, 'error');
   currentPreviewPoster = poster;
+  setupPhoneticForPreview(poster.language);
   cancelEditTextMode(); // always open in view mode
   document.getElementById('poster-preview-img').src = poster.image_url + '?t=' + Date.now();
   const occasionLabel = (posterOptions?.occasions.find(o => o.value === poster.occasion)?.label) || poster.occasion;
@@ -1799,6 +1800,233 @@ async function downloadPoster(id) {
 function downloadCurrentPoster() {
   if (!currentPreviewPoster) return;
   triggerImageDownload(currentPreviewPoster.image_url, `tlb-poster-${currentPreviewPoster.id}.png`);
+}
+
+// ==================== PHONETIC INPUT (Google Input Tools) ====================
+// Deshkeyboard-style typing for Odia/Kannada poster fields. User types
+// English phonetically (e.g. "namaste") and picks the correct native word
+// from a suggestion dropdown. Powered by Google Input Tools, the same
+// public endpoint Google's own tools use. No library, no build cost.
+const PHONETIC_ITC = { odia: 'or-t-i0-und', kannada: 'kn-t-i0-und' };
+const PHONETIC_FIELDS = ['edit-poster-headline', 'edit-poster-subtext', 'edit-poster-tagline'];
+
+const phoneticState = {
+  input: null,
+  wordStart: 0,
+  wordEnd: 0,
+  suggestions: [],
+  highlighted: 0,
+  requestId: 0
+};
+let phoneticDropdownEl = null;
+let phoneticDebounceTimer = null;
+
+function ensurePhoneticDropdown() {
+  if (phoneticDropdownEl) return phoneticDropdownEl;
+  phoneticDropdownEl = document.createElement('div');
+  phoneticDropdownEl.id = 'phonetic-dropdown';
+  phoneticDropdownEl.className = 'hidden fixed z-[60] bg-white border border-gray-200 rounded-lg shadow-lg py-1 text-sm';
+  phoneticDropdownEl.style.minWidth = '200px';
+  phoneticDropdownEl.addEventListener('mousedown', (e) => {
+    // Prevent input from losing focus when clicking inside the dropdown
+    e.preventDefault();
+  });
+  document.body.appendChild(phoneticDropdownEl);
+  return phoneticDropdownEl;
+}
+
+function hidePhoneticDropdown() {
+  if (phoneticDropdownEl) phoneticDropdownEl.classList.add('hidden');
+  phoneticState.input = null;
+  phoneticState.suggestions = [];
+}
+
+function renderPhoneticDropdown() {
+  const dd = ensurePhoneticDropdown();
+  const { input, suggestions, highlighted } = phoneticState;
+  if (!input || !suggestions.length) {
+    dd.classList.add('hidden');
+    return;
+  }
+  dd.innerHTML = suggestions.map((s, i) => `
+    <div class="phonetic-item flex items-center px-3 py-1.5 cursor-pointer ${i === highlighted ? 'bg-brand-50 text-brand-700' : 'text-gray-700 hover:bg-gray-50'}" data-index="${i}">
+      <span class="text-[10px] text-gray-400 mr-2 w-3 text-right">${i + 1}</span>
+      <span class="flex-1">${escHtml(s)}</span>
+    </div>
+  `).join('');
+  const rect = input.getBoundingClientRect();
+  dd.style.left = rect.left + 'px';
+  dd.style.top = (rect.bottom + 4) + 'px';
+  dd.style.minWidth = Math.max(rect.width, 200) + 'px';
+  dd.classList.remove('hidden');
+  dd.querySelectorAll('.phonetic-item').forEach(item => {
+    item.onclick = () => {
+      phoneticState.highlighted = Number(item.dataset.index);
+      commitPhoneticSuggestion();
+      input.focus();
+    };
+  });
+}
+
+function getCurrentWordBounds(input) {
+  const val = input.value;
+  const caret = input.selectionStart || 0;
+  let start = caret;
+  while (start > 0 && /[A-Za-z]/.test(val[start - 1])) start--;
+  let end = caret;
+  while (end < val.length && /[A-Za-z]/.test(val[end])) end++;
+  return { start, end, word: val.slice(start, end) };
+}
+
+// Google Input Tools does NOT send an Access-Control-Allow-Origin header,
+// so a plain fetch() is blocked by CORS. It does support JSONP via `&cb=`,
+// which is what we use here. Each call injects a <script> tag, runs a
+// single-use callback, and cleans up after itself.
+let phoneticCallbackSeq = 0;
+function fetchPhoneticSuggestions(word, itc) {
+  return new Promise((resolve) => {
+    const cbName = `__phoneticCb${++phoneticCallbackSeq}`;
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve([]);
+    }, 3500);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = (data) => {
+      cleanup();
+      if (!Array.isArray(data) || data[0] !== 'SUCCESS') return resolve([]);
+      const entry = data[1] && data[1][0];
+      resolve((entry && entry[1]) || []);
+    };
+
+    script.onerror = () => { cleanup(); resolve([]); };
+    script.src =
+      `https://inputtools.google.com/request?text=${encodeURIComponent(word)}` +
+      `&itc=${itc}&num=6&cp=0&cs=1&ie=utf-8&oe=utf-8&cb=${cbName}`;
+    document.head.appendChild(script);
+  });
+}
+
+function schedulePhoneticLookup(input, itc) {
+  clearTimeout(phoneticDebounceTimer);
+  const { start, end, word } = getCurrentWordBounds(input);
+  if (!word) { hidePhoneticDropdown(); return; }
+  phoneticState.input = input;
+  phoneticState.wordStart = start;
+  phoneticState.wordEnd = end;
+  const reqId = ++phoneticState.requestId;
+  phoneticDebounceTimer = setTimeout(async () => {
+    try {
+      const suggestions = await fetchPhoneticSuggestions(word, itc);
+      if (reqId !== phoneticState.requestId) return; // stale
+      // Keep the raw English word as the last fallback option so the user
+      // can always bail out to literal ASCII.
+      phoneticState.suggestions = suggestions.length ? [...suggestions, word] : [];
+      phoneticState.highlighted = 0;
+      renderPhoneticDropdown();
+    } catch {
+      hidePhoneticDropdown();
+    }
+  }, 180);
+}
+
+function commitPhoneticSuggestion() {
+  const { input, suggestions, highlighted, wordStart, wordEnd } = phoneticState;
+  if (!input || !suggestions.length) return false;
+  const pick = suggestions[highlighted];
+  const val = input.value;
+  input.value = val.slice(0, wordStart) + pick + val.slice(wordEnd);
+  const newCaret = wordStart + pick.length;
+  input.setSelectionRange(newCaret, newCaret);
+  hidePhoneticDropdown();
+  return true;
+}
+
+function attachPhoneticInput(input, language) {
+  const itc = PHONETIC_ITC[language];
+  if (!itc) return;
+
+  input.addEventListener('input', () => schedulePhoneticLookup(input, itc));
+  input.addEventListener('click', () => schedulePhoneticLookup(input, itc));
+  input.addEventListener('keydown', (e) => {
+    if (phoneticState.input !== input || !phoneticState.suggestions.length) return;
+    const len = phoneticState.suggestions.length;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        phoneticState.highlighted = (phoneticState.highlighted + 1) % len;
+        renderPhoneticDropdown();
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        phoneticState.highlighted = (phoneticState.highlighted - 1 + len) % len;
+        renderPhoneticDropdown();
+        break;
+      case 'Enter':
+      case 'Tab':
+        if (commitPhoneticSuggestion()) e.preventDefault();
+        break;
+      case ' ': {
+        // Commit then insert the space manually (and swallow the keypress)
+        if (commitPhoneticSuggestion()) {
+          e.preventDefault();
+          const caret = input.selectionStart;
+          input.value = input.value.slice(0, caret) + ' ' + input.value.slice(caret);
+          input.setSelectionRange(caret + 1, caret + 1);
+        }
+        break;
+      }
+      case 'Escape':
+        e.preventDefault();
+        hidePhoneticDropdown();
+        break;
+      default:
+        if (/^[1-9]$/.test(e.key)) {
+          const idx = Number(e.key) - 1;
+          if (idx < len) {
+            phoneticState.highlighted = idx;
+            if (commitPhoneticSuggestion()) e.preventDefault();
+          }
+        }
+    }
+  });
+  input.addEventListener('blur', () => {
+    // Delay so dropdown mousedown (preventDefault) can still commit
+    setTimeout(() => {
+      if (phoneticState.input === input) hidePhoneticDropdown();
+    }, 120);
+  });
+}
+
+// Re-arm phonetic typing for the three edit fields whenever a new poster
+// preview is opened. Cloning each element is the cleanest way to drop any
+// previously-attached listeners without bookkeeping.
+function setupPhoneticForPreview(language) {
+  const supported = language === 'odia' || language === 'kannada';
+  PHONETIC_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const clone = el.cloneNode(false);
+    clone.value = el.value;
+    el.parentNode.replaceChild(clone, el);
+    if (supported) attachPhoneticInput(clone, language);
+  });
+  const banner = document.getElementById('edit-poster-phonetic-info');
+  if (banner) {
+    banner.classList.toggle('hidden', !supported);
+    if (supported) {
+      const langLabel = language === 'odia' ? 'Odia' : 'Kannada';
+      const title = document.getElementById('edit-poster-phonetic-title');
+      if (title) title.textContent = `Type in English, pick ${langLabel}`;
+    }
+  }
+  hidePhoneticDropdown();
 }
 
 // ==================== EDIT POSTER TEXT (no bg regen) ====================
