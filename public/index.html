@@ -274,13 +274,25 @@
                 <p class="text-sm text-gray-400 mt-1">Branded posters for Instagram, Facebook, LinkedIn & more</p>
               </div>
             </div>
-            <button onclick="openPosterModal()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
-              <i data-lucide="plus" class="w-4 h-4"></i> Create Poster
-            </button>
+            <div class="flex items-center gap-2">
+              <div id="posters-view-toggle" class="inline-flex items-center border border-gray-200 rounded-lg p-0.5 bg-white">
+                <button type="button" data-mode="grid" onclick="setPosterViewMode('grid')" title="Grid view"
+                  class="poster-view-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition">
+                  <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                </button>
+                <button type="button" data-mode="list" onclick="setPosterViewMode('list')" title="List view"
+                  class="poster-view-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition">
+                  <i data-lucide="list" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <button onclick="openPosterModal()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+                <i data-lucide="plus" class="w-4 h-4"></i> Create Poster
+              </button>
+            </div>
           </div>
 
-          <div id="posters-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div class="col-span-full bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
+          <div id="posters-container" class="space-y-8">
+            <div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
               No posters yet. Click "Create Poster" to design your first one.
             </div>
           </div>

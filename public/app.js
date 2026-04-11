@@ -1645,24 +1645,84 @@ async function loadPosterOptions() {
   return posterOptions;
 }
 
+// Latest poster list, kept so the view-mode toggle can re-render without
+// refetching. Updated each time loadPosters() runs.
+let cachedPosters = [];
+let posterViewMode = localStorage.getItem('posterViewMode') === 'list' ? 'list' : 'grid';
+
 async function loadPosters() {
   await loadPosterOptions();
   const { posters } = await api('/api/posters?limit=60');
-  renderPosters(posters);
+  cachedPosters = posters;
+  renderPosters(cachedPosters);
   lucide.createIcons();
 }
 
-function renderPosters(posters) {
-  const grid = document.getElementById('posters-grid');
-  if (!posters.length) {
-    grid.innerHTML = '<div class="col-span-full bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">No posters yet. Click "Create Poster" to design your first one.</div>';
-    return;
+function setPosterViewMode(mode) {
+  if (mode !== 'grid' && mode !== 'list') return;
+  posterViewMode = mode;
+  localStorage.setItem('posterViewMode', mode);
+  renderPosters(cachedPosters);
+  lucide.createIcons();
+}
+
+function updatePosterViewToggleUi() {
+  const toggle = document.getElementById('posters-view-toggle');
+  if (!toggle) return;
+  toggle.querySelectorAll('.poster-view-btn').forEach(btn => {
+    const active = btn.dataset.mode === posterViewMode;
+    btn.classList.toggle('bg-brand-50', active);
+    btn.classList.toggle('text-brand-700', active);
+    btn.classList.toggle('text-gray-400', !active);
+    btn.classList.toggle('hover:text-gray-600', !active);
+  });
+}
+
+// Return a Date set to the start of the local day for the given SQLite
+// datetime string (stored as UTC without timezone).
+function localDayStart(dateStr) {
+  if (!dateStr) return null;
+  const normalized = dateStr.endsWith('Z') || dateStr.includes('+') || dateStr.includes('T') ? dateStr : dateStr + 'Z';
+  const d = new Date(normalized);
+  if (isNaN(d)) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// Bucket posters by created_at day in local time. Returns an ordered array
+// of { label, posters } sections, newest first, with "Today" and
+// "Yesterday" getting friendly labels and older days getting a formatted
+// absolute date.
+function groupPostersByDay(posters) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today.getTime() - 86400000);
+  const fmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const order = [];
+  const byKey = new Map();
+  for (const p of posters) {
+    const day = localDayStart(p.created_at) || today;
+    const key = day.getTime();
+    let label;
+    if (key === today.getTime()) label = 'Today';
+    else if (key === yesterday.getTime()) label = 'Yesterday';
+    else label = fmt.format(day);
+    if (!byKey.has(key)) {
+      byKey.set(key, { key, label, posters: [] });
+      order.push(key);
+    }
+    byKey.get(key).posters.push(p);
   }
-  grid.innerHTML = posters.map(p => {
-    const occasionLabel = (posterOptions?.occasions.find(o => o.value === p.occasion)?.label) || p.occasion || '';
-    const sizeLabel = (posterOptions?.sizes.find(s => s.value === p.size)?.label) || p.size || '';
-    const langLabel = (posterOptions?.languages.find(l => l.value === p.language)?.label) || p.language || '';
-    return `
+  // Newest day first. Posters inside each bucket keep the server order.
+  return order.sort((a, b) => b - a).map(k => byKey.get(k));
+}
+
+function renderPosterGridCard(p) {
+  const occasionLabel = (posterOptions?.occasions.find(o => o.value === p.occasion)?.label) || p.occasion || '';
+  const sizeLabel = (posterOptions?.sizes.find(s => s.value === p.size)?.label) || p.size || '';
+  const langLabel = (posterOptions?.languages.find(l => l.value === p.language)?.label) || p.language || '';
+  return `
     <div class="bg-white rounded-xl border border-gray-100 overflow-hidden group">
       <div class="bg-gray-100 relative cursor-pointer" onclick="openPosterPreview(${p.id})">
         <img src="${p.image_url}" class="w-full h-56 object-cover" />
@@ -1694,7 +1754,69 @@ function renderPosters(posters) {
         </div>
       </div>
     </div>`;
-  }).join('');
+}
+
+function renderPosterListCard(p) {
+  const occasionLabel = (posterOptions?.occasions.find(o => o.value === p.occasion)?.label) || p.occasion || '';
+  const sizeLabel = (posterOptions?.sizes.find(s => s.value === p.size)?.label) || p.size || '';
+  const langLabel = (posterOptions?.languages.find(l => l.value === p.language)?.label) || p.language || '';
+  return `
+    <div class="bg-white rounded-xl border border-gray-100 flex items-center gap-4 p-3 hover:border-gray-200 transition">
+      <div class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 cursor-pointer" onclick="openPosterPreview(${p.id})">
+        <img src="${p.image_url}" class="w-full h-full object-cover" />
+      </div>
+      <div class="flex-1 min-w-0 cursor-pointer" onclick="openPosterPreview(${p.id})">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-brand-50 text-brand-600 uppercase tracking-wide">${escHtml(occasionLabel)}</span>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">${escHtml(sizeLabel)}</span>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">${escHtml(langLabel)}</span>
+        </div>
+        <p class="text-sm font-medium text-gray-800 leading-snug truncate">${escHtml(p.headline || '—')}</p>
+        <p class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(p.subtext || '')}</p>
+      </div>
+      <div class="flex items-center gap-4 flex-shrink-0">
+        <span class="text-xs text-gray-300 whitespace-nowrap hidden sm:block">${timeAgo(p.created_at)}</span>
+        <div class="flex gap-1">
+          <button onclick="downloadPoster(${p.id})" title="Download" class="text-gray-400 hover:text-gray-700 p-1.5 rounded hover:bg-gray-50 transition">
+            <i data-lucide="download" class="w-4 h-4"></i>
+          </button>
+          <button onclick="regeneratePoster(${p.id})" title="Regenerate" class="text-gray-400 hover:text-gray-700 p-1.5 rounded hover:bg-gray-50 transition">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          </button>
+          <button onclick="deletePoster(${p.id})" title="Delete" class="text-gray-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderPosters(posters) {
+  updatePosterViewToggleUi();
+  const container = document.getElementById('posters-container');
+  if (!container) return;
+  if (!posters.length) {
+    container.innerHTML = '<div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">No posters yet. Click "Create Poster" to design your first one.</div>';
+    return;
+  }
+  const sections = groupPostersByDay(posters);
+  const gridWrap = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5';
+  const listWrap = 'flex flex-col gap-2';
+  const renderCard = posterViewMode === 'list' ? renderPosterListCard : renderPosterGridCard;
+  const wrapCls = posterViewMode === 'list' ? listWrap : gridWrap;
+
+  container.innerHTML = sections.map(section => `
+    <section>
+      <div class="flex items-center gap-3 mb-3">
+        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wider">${escHtml(section.label)}</h3>
+        <span class="text-xs text-gray-300">${section.posters.length} poster${section.posters.length === 1 ? '' : 's'}</span>
+        <div class="flex-1 h-px bg-gray-100"></div>
+      </div>
+      <div class="${wrapCls}">
+        ${section.posters.map(renderCard).join('')}
+      </div>
+    </section>
+  `).join('');
 }
 
 async function openPosterModal() {
