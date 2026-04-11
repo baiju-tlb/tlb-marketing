@@ -1728,6 +1728,16 @@ function downloadCurrentPoster() {
 }
 
 // ==================== EDIT POSTER TEXT (no bg regen) ====================
+function setPreviewMode(mode) {
+  // mode: 'view' or 'edit' — inline display reliably overrides any utility class
+  document.querySelectorAll('#modal-poster-preview .js-view-mode').forEach(el => {
+    el.style.display = mode === 'view' ? '' : 'none';
+  });
+  document.querySelectorAll('#modal-poster-preview .js-edit-mode').forEach(el => {
+    el.style.display = mode === 'edit' ? '' : 'none';
+  });
+}
+
 function enterEditTextMode() {
   if (!currentPreviewPoster) return;
   const p = currentPreviewPoster;
@@ -1745,16 +1755,12 @@ function enterEditTextMode() {
   layoutSel.innerHTML = layouts.map(l => `<option value="${l.value}">${escHtml(l.label)}</option>`).join('');
   layoutSel.value = p.template || 'auto';
 
-  document.getElementById('preview-view-mode').classList.add('hidden');
-  document.getElementById('preview-edit-mode').classList.remove('hidden');
+  setPreviewMode('edit');
   lucide.createIcons();
 }
 
 function cancelEditTextMode() {
-  const editEl = document.getElementById('preview-edit-mode');
-  const viewEl = document.getElementById('preview-view-mode');
-  if (editEl) editEl.classList.add('hidden');
-  if (viewEl) viewEl.classList.remove('hidden');
+  setPreviewMode('view');
 }
 
 async function saveEditedText() {

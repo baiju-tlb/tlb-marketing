@@ -857,10 +857,10 @@
 
       <!-- Generating state (shown while the poster is being created) -->
       <div id="poster-generating" class="hidden text-center py-6">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-brand-50 mb-4 relative">
-          <div class="absolute inset-0 rounded-full border-4 border-brand-100"></div>
-          <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
-          <i data-lucide="sparkles" class="w-7 h-7 text-brand-600"></i>
+        <div class="inline-flex items-center justify-center w-24 h-24 mb-4 relative">
+          <div class="absolute inset-0 rounded-2xl border-4 border-brand-100"></div>
+          <div class="absolute inset-0 rounded-2xl border-4 border-brand-500 border-t-transparent animate-spin"></div>
+          <img src="/assets/images/tlb-dark-icon.png" alt="TLB" class="w-16 h-16 rounded-xl">
         </div>
         <h4 class="text-lg font-semibold text-gray-800">Generating your poster</h4>
         <p class="text-sm text-gray-500 mt-1 mb-5">Crafting copy, painting the background, and composing the final image. This usually takes 20 to 40 seconds.</p>
@@ -897,19 +897,52 @@
 
   <!-- Poster Preview Modal -->
   <div id="modal-poster-preview" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
-    <div class="bg-white rounded-2xl w-[720px] max-w-[95vw] max-h-[92vh] overflow-y-auto p-6 shadow-xl">
-      <div class="flex items-center justify-between mb-5">
+    <div class="bg-white rounded-2xl w-[720px] max-w-[95vw] max-h-[92vh] flex flex-col shadow-xl overflow-hidden">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
         <h3 class="text-lg font-semibold text-gray-800">Poster Preview</h3>
         <button onclick="closeModal('modal-poster-preview')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
-      <div class="bg-gray-100 rounded-xl p-4 flex items-center justify-center mb-4">
-        <img id="poster-preview-img" class="max-h-[60vh] max-w-full rounded-lg shadow-md" />
+
+      <!-- Scrollable body -->
+      <div class="flex-1 overflow-y-auto px-6 py-5">
+        <div class="bg-gray-100 rounded-xl p-4 flex items-center justify-center mb-4">
+          <img id="poster-preview-img" class="max-h-[60vh] max-w-full rounded-lg shadow-md" />
+        </div>
+
+        <!-- View mode meta -->
+        <div class="js-view-mode text-sm text-gray-600" id="poster-preview-meta"></div>
+
+        <!-- Edit mode form -->
+        <div class="js-edit-mode hidden">
+          <p class="text-xs text-gray-500 mb-3">Edit the copy and layout. The background image stays the same, so saving is fast (~2s).</p>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Headline</label>
+              <input type="text" id="edit-poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Subtext</label>
+              <input type="text" id="edit-poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Tagline</label>
+              <input type="text" id="edit-poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Layout</label>
+              <select id="edit-poster-layout" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- View mode: meta + action buttons -->
-      <div id="preview-view-mode">
-        <div class="text-sm text-gray-600 mb-4" id="poster-preview-meta"></div>
-        <div class="flex justify-end gap-3 flex-wrap">
+      <!-- Sticky footer (action buttons) -->
+      <div class="flex-shrink-0 border-t border-gray-100 px-6 py-4 bg-white">
+        <!-- View mode buttons -->
+        <div class="js-view-mode flex justify-end gap-3 flex-wrap">
           <button onclick="closeModal('modal-poster-preview')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
           <button onclick="enterEditTextMode()" id="btn-poster-edit-text" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
             <i data-lucide="type" class="w-4 h-4"></i> Edit Text
@@ -921,32 +954,9 @@
             <i data-lucide="download" class="w-4 h-4"></i> Download
           </button>
         </div>
-      </div>
 
-      <!-- Edit Text mode: inline editable copy + save/cancel -->
-      <div id="preview-edit-mode" class="hidden">
-        <p class="text-xs text-gray-500 mb-3">Edit the copy and layout. The background image stays the same, so saving is fast (~2s).</p>
-        <div class="space-y-3 mb-4">
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Headline</label>
-            <input type="text" id="edit-poster-headline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Subtext</label>
-            <input type="text" id="edit-poster-subtext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Tagline</label>
-            <input type="text" id="edit-poster-tagline" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Layout</label>
-            <select id="edit-poster-layout" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-              <option value="">Loading...</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex justify-end gap-3 flex-wrap">
+        <!-- Edit mode buttons -->
+        <div class="js-edit-mode hidden justify-end gap-3 flex-wrap">
           <button onclick="cancelEditTextMode()" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
           <button onclick="saveEditedText()" id="btn-save-edit-text" class="flex items-center gap-2 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
             <i data-lucide="save" class="w-4 h-4"></i> Save Changes

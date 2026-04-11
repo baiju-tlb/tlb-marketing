@@ -382,6 +382,56 @@ function pickRandomTemplate(exclude) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// ==================== FOOTER BLOCK HELPER ====================
+// All four layouts share the same bottom-anchored footer:
+//   phone (highlighted, larger)
+//   url   (smaller)
+//   logo  (at the very bottom)
+// computeFooter returns the geometry and a `footerTop` baseline that the
+// rest of the layout uses to keep main content from overlapping the footer.
+function computeFooter({ width, height, base, align = 'center', padX = 0, logoWidthRatio = 0.18, padBottomRatio = 0.045 }) {
+  const padBottom = Math.round(height * padBottomRatio);
+  const phoneSize = Math.round(base * 0.038);
+  const urlSize   = Math.round(base * 0.020);
+
+  const logoWidth  = Math.round(width * logoWidthRatio);
+  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
+  const logoBottom = height - padBottom;
+  const logoTop    = logoBottom - logoHeight;
+
+  let logoLeft, textX, textAnchor;
+  if (align === 'right') {
+    logoLeft   = width - padX - logoWidth;
+    textX      = width - padX;
+    textAnchor = 'end';
+  } else if (align === 'left') {
+    logoLeft   = padX;
+    textX      = padX;
+    textAnchor = 'start';
+  } else {
+    logoLeft   = Math.round((width - logoWidth) / 2);
+    textX      = Math.round(width / 2);
+    textAnchor = 'middle';
+  }
+
+  // url just above the logo, phone just above the url
+  const urlGapToLogo = Math.round(base * 0.018);
+  const urlY = logoTop - urlGapToLogo;            // baseline of url text
+
+  const phoneGapToUrl = Math.round(base * 0.010);
+  const phoneY = urlY - urlSize - phoneGapToUrl;  // baseline of phone text
+
+  // Top edge of the entire footer block (used by main content as a hard floor)
+  const footerTop = phoneY - phoneSize;
+
+  return {
+    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    phone: { x: textX, y: phoneY, size: phoneSize, anchor: textAnchor, weight: 700, letterSpacing: 1.2 },
+    url:   { x: textX, y: urlY,   size: urlSize,   anchor: textAnchor, weight: 400, letterSpacing: 0.6 },
+    footerTop
+  };
+}
+
 // Compute the full layout for a given template. Each layout function wraps the
 // actual copy, positions every text block, the logo, and defines the gradient
 // stops. buildOverlaySvg just reads the returned geometry and draws it.
@@ -403,7 +453,6 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline }) {
   const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.10);
   const subtextSize  = Math.round(base * 0.034);
   const taglineSize  = Math.round(base * 0.028);
-  const metaSize     = Math.round(base * 0.025);
 
   const charW = 0.58;
   const headlineMaxChars = Math.max(6, Math.floor((width * 0.84) / (headlineSize * charW)));
@@ -411,19 +460,11 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline }) {
   const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
   const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
 
-  const padBottom = Math.round(height * 0.055);
-  const metaY = height - padBottom;
-
-  const logoWidth  = Math.round(width * 0.24);
-  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
-  const logoGapBelow = Math.round(base * 0.022);
-  const logoBottom = metaY - metaSize - logoGapBelow;
-  const logoTop    = logoBottom - logoHeight;
-  const logoLeft   = Math.round((width - logoWidth) / 2);
+  const footer = computeFooter({ width, height, base, align: 'center', logoWidthRatio: 0.18 });
 
   const subtextGapBelow = Math.round(base * 0.035);
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
-  const subtextBottom = logoTop - subtextGapBelow;
+  const subtextBottom = footer.footerTop - subtextGapBelow;
   const subtextStartY = subtextBottom - subtextBlockHeight + subtextSize;
 
   const headlineGapBelow = Math.round(base * 0.025);
@@ -442,7 +483,7 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline }) {
   return {
     template: 'center-classic',
     base, width, height,
-    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    logo: footer.logo,
     headline: {
       x: centerX, y: headlineStartY, size: headlineSize,
       anchor: 'middle', weight: 700, lineHeight: 1.05, lines: headlineLines,
@@ -456,10 +497,8 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline }) {
       x: centerX, y: taglineY, size: taglineSize,
       anchor: 'middle', weight: 500, letterSpacing: 3, text: tagline
     } : null,
-    meta: {
-      x: centerX, y: metaY, size: metaSize,
-      anchor: 'middle', letterSpacing: 1.2
-    },
+    phone: footer.phone,
+    url: footer.url,
     gradient: {
       stops: [
         { offset: 0,       opacity: 0 },
@@ -477,31 +516,22 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline }) {
   const headlineSize = isLandscape ? Math.round(base * 0.13) : Math.round(base * 0.095);
   const subtextSize  = Math.round(base * 0.032);
   const taglineSize  = Math.round(base * 0.025);
-  const metaSize     = Math.round(base * 0.022);
 
   const padX = Math.round(width * 0.06);
-  const padBottom = Math.round(height * 0.055);
 
-  // Logo anchored bottom-right
-  const logoWidth  = Math.round(width * 0.20);
-  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
-  const logoLeft   = width - padX - logoWidth;
-  const metaY      = height - padBottom;
-  const metaX      = width - padX;
-  const logoGapBelow = Math.round(base * 0.018);
-  const logoBottom = metaY - metaSize - logoGapBelow;
-  const logoTop    = logoBottom - logoHeight;
+  // Footer (logo + phone + url) anchored bottom-right
+  const footer = computeFooter({ width, height, base, align: 'right', padX, logoWidthRatio: 0.18 });
 
-  // Text block bottom-left, up to ~65% width so it never crashes into the logo
-  const textMaxWidth = Math.round(width * 0.65);
+  // Text block bottom-left, up to ~62% width so it never crashes into the footer
+  const textMaxWidth = Math.round(width * 0.62);
   const charW = 0.58;
   const headlineMaxChars = Math.max(6, Math.floor(textMaxWidth / (headlineSize * charW)));
   const subtextMaxChars  = Math.max(10, Math.floor(textMaxWidth / (subtextSize * charW)));
   const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
   const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
 
-  // Align the bottom of the text block with the bottom of the logo
-  const textBottom = logoBottom;
+  // Align the bottom of the text block with the top of the footer
+  const textBottom = footer.footerTop - Math.round(base * 0.01);
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
   const subtextStartY = textBottom - subtextBlockHeight + subtextSize;
 
@@ -519,7 +549,7 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline }) {
   return {
     template: 'bottom-left',
     base, width, height,
-    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    logo: footer.logo,
     headline: {
       x: padX, y: headlineStartY, size: headlineSize,
       anchor: 'start', weight: 700, lineHeight: 1.05, lines: headlineLines,
@@ -533,10 +563,8 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline }) {
       x: padX, y: taglineY, size: taglineSize,
       anchor: 'start', weight: 500, letterSpacing: 3, text: tagline
     } : null,
-    meta: {
-      x: metaX, y: metaY, size: metaSize,
-      anchor: 'end', letterSpacing: 1.2
-    },
+    phone: footer.phone,
+    url: footer.url,
     gradient: {
       stops: [
         { offset: 0,       opacity: 0 },
@@ -554,11 +582,9 @@ function layoutTopHero({ width, height, headline, subtext, tagline }) {
   const headlineSize = isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.11);
   const subtextSize  = Math.round(base * 0.032);
   const taglineSize  = Math.round(base * 0.025);
-  const metaSize     = Math.round(base * 0.022);
 
-  const padTop    = Math.round(height * 0.09);
-  const padBottom = Math.round(height * 0.055);
-  const centerX   = Math.round(width / 2);
+  const padTop  = Math.round(height * 0.09);
+  const centerX = Math.round(width / 2);
 
   const charW = 0.58;
   const headlineMaxChars = Math.max(6, Math.floor((width * 0.82) / (headlineSize * charW)));
@@ -572,24 +598,17 @@ function layoutTopHero({ width, height, headline, subtext, tagline }) {
   const headlineStartY = taglineY + taglineGap + headlineSize;
   const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
 
-  // Logo at bottom center
-  const logoWidth  = Math.round(width * 0.22);
-  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
-  const logoLeft   = Math.round((width - logoWidth) / 2);
+  // Footer (logo + phone + url) at the bottom
+  const footer = computeFooter({ width, height, base, align: 'center', logoWidthRatio: 0.20 });
 
-  const metaY = height - padBottom;
-  const logoGapBelow = Math.round(base * 0.02);
-  const logoBottom = metaY - metaSize - logoGapBelow;
-  const logoTop    = logoBottom - logoHeight;
-
-  // Subtext directly above logo
+  // Subtext directly above the footer block
   const subtextGapBelow = Math.round(base * 0.03);
-  const subtextBottom = logoTop - subtextGapBelow;
+  const subtextBottom = footer.footerTop - subtextGapBelow;
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
   const subtextStartY = subtextBottom - subtextBlockHeight + subtextSize;
 
   // V-shaped gradient: dark band at top (behind headline), clear middle,
-  // dark band at bottom (behind subtext + logo + meta)
+  // dark band at bottom (behind subtext + footer)
   const topDarkEndY = taglineY + headlineBlockHeight + Math.round(base * 0.08);
   const bottomDarkStartY = subtextStartY - subtextSize - Math.round(base * 0.06);
   const topDarkEndPct = Math.max(15, Math.min(45, Math.round((topDarkEndY / height) * 100)));
@@ -598,7 +617,7 @@ function layoutTopHero({ width, height, headline, subtext, tagline }) {
   return {
     template: 'top-hero',
     base, width, height,
-    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    logo: footer.logo,
     headline: {
       x: centerX, y: headlineStartY, size: headlineSize,
       anchor: 'middle', weight: 700, lineHeight: 1.05, lines: headlineLines,
@@ -612,10 +631,8 @@ function layoutTopHero({ width, height, headline, subtext, tagline }) {
       x: centerX, y: taglineY, size: taglineSize,
       anchor: 'middle', weight: 500, letterSpacing: 3, text: tagline
     } : null,
-    meta: {
-      x: centerX, y: metaY, size: metaSize,
-      anchor: 'middle', letterSpacing: 1.2
-    },
+    phone: footer.phone,
+    url: footer.url,
     gradient: {
       stops: [
         { offset: 0,                  opacity: 0.80 },
@@ -633,7 +650,6 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline }) {
 
   const headlineSize = isLandscape ? Math.round(base * 0.18) : Math.round(base * 0.14);
   const subtextSize  = Math.round(base * 0.028);
-  const metaSize     = Math.round(base * 0.02);
 
   const centerX = Math.round(width / 2);
   const centerY = Math.round(height / 2);
@@ -652,20 +668,13 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline }) {
   const subtextGap = Math.round(base * 0.028);
   const subtextStartY = headlineBottom + subtextGap + subtextSize;
 
-  // Small logo at the bottom
-  const padBottom = Math.round(height * 0.055);
-  const logoWidth  = Math.round(width * 0.16);
-  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
-  const logoLeft   = Math.round((width - logoWidth) / 2);
-  const metaY      = height - padBottom;
-  const logoGapBelow = Math.round(base * 0.018);
-  const logoBottom = metaY - metaSize - logoGapBelow;
-  const logoTop    = logoBottom - logoHeight;
+  // Small footer (logo + phone + url) at the bottom
+  const footer = computeFooter({ width, height, base, align: 'center', logoWidthRatio: 0.14 });
 
   return {
     template: 'minimal-center',
     base, width, height,
-    logo: { left: logoLeft, top: logoTop, width: logoWidth, height: logoHeight },
+    logo: footer.logo,
     headline: {
       x: centerX, y: headlineStartY, size: headlineSize,
       anchor: 'middle', weight: 700, lineHeight: 1.03, lines: headlineLines,
@@ -676,10 +685,8 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline }) {
       anchor: 'middle', weight: 400, lineHeight: 1.35, lines: subtextLines
     },
     tagline: null, // minimal layout skips the tagline on purpose
-    meta: {
-      x: centerX, y: metaY, size: metaSize,
-      anchor: 'middle', letterSpacing: 1.2
-    },
+    phone: footer.phone,
+    url: footer.url,
     gradient: {
       stops: [
         { offset: 0,   opacity: 0.35 },
@@ -697,7 +704,10 @@ function buildOverlaySvg({ width, height, phone, website, fontFamily, layout, lo
   // dark/light colour so text always sits on an appropriate backdrop.
   const headlineFill = logoIsWhite ? '#FFFFFF' : TLB_BRAND.dark900;
   const subtextFill  = logoIsWhite ? '#EAF0F7' : TLB_BRAND.slate700;
-  const metaFill     = logoIsWhite ? '#FFFFFF' : TLB_BRAND.dark800;
+  // Phone is the highlight: brand teal so it stands out from the rest of the
+  // footer regardless of light or dark background.
+  const phoneFill    = logoIsWhite ? TLB_BRAND.teal200 : TLB_BRAND.teal600;
+  const urlFill      = logoIsWhite ? '#EAF0F7' : TLB_BRAND.slate700;
   const taglineFill  = logoIsWhite ? TLB_BRAND.teal200 : TLB_BRAND.teal700;
   const gradStopColor = logoIsWhite ? TLB_BRAND.dark900 : '#FFFFFF';
 
@@ -705,7 +715,9 @@ function buildOverlaySvg({ width, height, phone, website, fontFamily, layout, lo
     `      <stop offset="${s.offset}%" stop-color="${gradStopColor}" stop-opacity="${s.opacity}"/>`
   ).join('\n');
 
-  const { headline, subtext, tagline, meta } = layout;
+  const { headline, subtext, tagline } = layout;
+  const phoneBlock = layout.phone;
+  const urlBlock = layout.url;
 
   const headlineTspans = headline.lines.map((line, i) =>
     `<tspan x="${headline.x}" dy="${i === 0 ? 0 : Math.round(headline.size * headline.lineHeight)}">${escapeXml(line)}</tspan>`
@@ -723,6 +735,27 @@ function buildOverlaySvg({ width, height, phone, website, fontFamily, layout, lo
         fill="${taglineFill}"
         text-anchor="${tagline.anchor}"
         letter-spacing="${tagline.letterSpacing}">${escapeXml(tagline.text.toUpperCase())}</text>
+  ` : '';
+
+  const phoneSvg = phoneBlock ? `
+  <text x="${phoneBlock.x}" y="${phoneBlock.y}"
+        font-family="${fontFamily}"
+        font-size="${phoneBlock.size}"
+        font-weight="${phoneBlock.weight}"
+        fill="${phoneFill}"
+        text-anchor="${phoneBlock.anchor}"
+        letter-spacing="${phoneBlock.letterSpacing}">${escapeXml(phone)}</text>
+  ` : '';
+
+  const urlSvg = urlBlock ? `
+  <text x="${urlBlock.x}" y="${urlBlock.y}"
+        font-family="${fontFamily}"
+        font-size="${urlBlock.size}"
+        font-weight="${urlBlock.weight}"
+        fill="${urlFill}"
+        fill-opacity="0.85"
+        text-anchor="${urlBlock.anchor}"
+        letter-spacing="${urlBlock.letterSpacing}">${escapeXml(website)}</text>
   ` : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -750,14 +783,8 @@ ${gradientStopsSvg}
         fill="${subtextFill}"
         text-anchor="${subtext.anchor}">${subtextTspans}</text>
 
-  <text x="${meta.x}" y="${meta.y}"
-        font-family="${fontFamily}"
-        font-size="${meta.size}"
-        font-weight="500"
-        fill="${metaFill}"
-        fill-opacity="0.88"
-        text-anchor="${meta.anchor}"
-        letter-spacing="${meta.letterSpacing}">${escapeXml(website)}   •   ${escapeXml(phone)}</text>
+  ${phoneSvg}
+  ${urlSvg}
 </svg>`;
 }
 
