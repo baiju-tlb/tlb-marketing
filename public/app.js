@@ -1810,17 +1810,19 @@ async function triggerImageDownload(url, filename) {
 }
 
 // ==================== BODY SCROLL LOCK FOR MODALS ====================
-// Lock the page scroll whenever any full-screen modal is visible. Modals in
-// this app all share the `fixed inset-0 ... z-50` pattern with a `hidden`
-// toggle, so we just check whether any are currently visible.
+// Lock the page scroll whenever any full-screen modal is visible. Only true
+// top-level modal divs (class "fixed inset-0 ... z-50") qualify — inner
+// helper containers like #modal-article-preview are intentionally excluded.
+const MODAL_SELECTOR = 'div.fixed.inset-0.z-50[id^="modal-"]';
+
 function syncBodyScrollLock() {
-  const anyOpen = Array.from(document.querySelectorAll('[id^="modal-"]'))
+  const anyOpen = Array.from(document.querySelectorAll(MODAL_SELECTOR))
     .some(el => !el.classList.contains('hidden'));
   document.body.style.overflow = anyOpen ? 'hidden' : '';
 }
 
 function watchModalsForScrollLock() {
-  const modals = document.querySelectorAll('[id^="modal-"]');
+  const modals = document.querySelectorAll(MODAL_SELECTOR);
   const obs = new MutationObserver(syncBodyScrollLock);
   modals.forEach(m => obs.observe(m, { attributes: true, attributeFilter: ['class'] }));
   syncBodyScrollLock();
