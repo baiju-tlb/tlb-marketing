@@ -385,6 +385,26 @@ function wrapTextLines(text, maxChars) {
   return lines;
 }
 
+// Try to wrap `text` into at most `maxLines` lines at `targetSize`. If the
+// text doesn't fit, iteratively shrink the font (down to a floor of ~60% of
+// target) until it does. This prevents long headlines from silently losing
+// their trailing words when the chosen font size is too big for the
+// available width. Returns the final { size, lines } pair.
+function fitTextToBox(text, { maxWidth, targetSize, maxLines, minSize, charW = 0.58 }) {
+  if (!text) return { size: targetSize, lines: [] };
+  const floor = Math.max(12, Math.round(minSize ?? targetSize * 0.6));
+  let size = targetSize;
+  for (let i = 0; i < 25; i++) {
+    const maxChars = Math.max(3, Math.floor(maxWidth / (size * charW)));
+    const lines = wrapTextLines(text, maxChars);
+    if (lines.length <= maxLines) return { size, lines };
+    if (size <= floor) return { size, lines: lines.slice(0, maxLines) };
+    size = Math.max(floor, Math.round(size * 0.93));
+  }
+  const maxChars = Math.max(3, Math.floor(maxWidth / (size * charW)));
+  return { size, lines: wrapTextLines(text, maxChars).slice(0, maxLines) };
+}
+
 // ==================== LAYOUT TEMPLATES ====================
 // Four distinct layouts so every regenerate can give a visually different poster.
 // - center-classic: centered stack (tagline / headline / sub / logo), bottom-weighted
@@ -476,14 +496,18 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline, fontSi
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.10));
+  const targetHeadlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.10));
   const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.034);
   const taglineSize  = fontSizeOverrides.tagline  || Math.round(base * 0.028);
 
+  const headlineFit = fitTextToBox(headline, {
+    maxWidth: width * 0.84, targetSize: targetHeadlineSize, maxLines: 3
+  });
+  const headlineSize = headlineFit.size;
+  const headlineLines = headlineFit.lines;
+
   const charW = 0.58;
-  const headlineMaxChars = Math.max(6, Math.floor((width * 0.84) / (headlineSize * charW)));
   const subtextMaxChars  = Math.max(10, Math.floor((width * 0.82) / (subtextSize * charW)));
-  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
   const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
 
   const footer = computeFooter({ width, height, base, align: 'center', logoWidthRatio: 0.18 });
@@ -539,7 +563,7 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline, fontSizeO
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.13) : Math.round(base * 0.095));
+  const targetHeadlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.13) : Math.round(base * 0.095));
   const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.032);
   const taglineSize  = fontSizeOverrides.tagline  || Math.round(base * 0.025);
 
@@ -550,10 +574,15 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline, fontSizeO
 
   // Text block bottom-left, up to ~62% width so it never crashes into the footer
   const textMaxWidth = Math.round(width * 0.62);
+
+  const headlineFit = fitTextToBox(headline, {
+    maxWidth: textMaxWidth, targetSize: targetHeadlineSize, maxLines: 3
+  });
+  const headlineSize = headlineFit.size;
+  const headlineLines = headlineFit.lines;
+
   const charW = 0.58;
-  const headlineMaxChars = Math.max(6, Math.floor(textMaxWidth / (headlineSize * charW)));
   const subtextMaxChars  = Math.max(10, Math.floor(textMaxWidth / (subtextSize * charW)));
-  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
   const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 3);
 
   // Align the bottom of the text block with the top of the footer
@@ -605,17 +634,21 @@ function layoutTopHero({ width, height, headline, subtext, tagline, fontSizeOver
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.11));
+  const targetHeadlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.14) : Math.round(base * 0.11));
   const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.032);
   const taglineSize  = fontSizeOverrides.tagline  || Math.round(base * 0.025);
 
   const padTop  = Math.round(height * 0.09);
   const centerX = Math.round(width / 2);
 
+  const headlineFit = fitTextToBox(headline, {
+    maxWidth: width * 0.82, targetSize: targetHeadlineSize, maxLines: 3
+  });
+  const headlineSize = headlineFit.size;
+  const headlineLines = headlineFit.lines;
+
   const charW = 0.58;
-  const headlineMaxChars = Math.max(6, Math.floor((width * 0.82) / (headlineSize * charW)));
   const subtextMaxChars  = Math.max(10, Math.floor((width * 0.72) / (subtextSize * charW)));
-  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
   const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 2);
 
   // Tagline at the very top, headline right underneath
@@ -674,16 +707,20 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline, fontSi
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
-  const headlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.18) : Math.round(base * 0.14));
+  const targetHeadlineSize = fontSizeOverrides.headline || (isLandscape ? Math.round(base * 0.18) : Math.round(base * 0.14));
   const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.028);
 
   const centerX = Math.round(width / 2);
   const centerY = Math.round(height / 2);
 
+  const headlineFit = fitTextToBox(headline, {
+    maxWidth: width * 0.80, targetSize: targetHeadlineSize, maxLines: 2
+  });
+  const headlineSize = headlineFit.size;
+  const headlineLines = headlineFit.lines;
+
   const charW = 0.58;
-  const headlineMaxChars = Math.max(4, Math.floor((width * 0.80) / (headlineSize * charW)));
   const subtextMaxChars  = Math.max(10, Math.floor((width * 0.72) / (subtextSize * charW)));
-  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 2);
   const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 2);
 
   // Centre the headline block vertically around the frame's mid-point
@@ -729,16 +766,20 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline, fontSi
 function layoutYoutube({ width, height, headline, subtext, fontSizeOverrides = {} }) {
   const base = Math.min(width, height);
 
-  const headlineSize = fontSizeOverrides.headline || Math.round(base * 0.13);
+  const targetHeadlineSize = fontSizeOverrides.headline || Math.round(base * 0.13);
   const subtextSize  = fontSizeOverrides.subtext  || Math.round(base * 0.045);
 
   const centerX = Math.round(width / 2);
   const centerY = Math.round(height / 2);
 
+  const headlineFit = fitTextToBox(headline, {
+    maxWidth: width * 0.88, targetSize: targetHeadlineSize, maxLines: 3
+  });
+  const headlineSize = headlineFit.size;
+  const headlineLines = headlineFit.lines;
+
   const charW = 0.58;
-  const headlineMaxChars = Math.max(6, Math.floor((width * 0.88) / (headlineSize * charW)));
   const subtextMaxChars  = Math.max(10, Math.floor((width * 0.78) / (subtextSize * charW)));
-  const headlineLines = wrapTextLines(headline, headlineMaxChars).slice(0, 3);
   const subtextLines  = wrapTextLines(subtext, subtextMaxChars).slice(0, 2);
 
   const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
