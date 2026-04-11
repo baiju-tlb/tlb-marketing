@@ -1729,12 +1729,13 @@ function downloadCurrentPoster() {
 
 // ==================== EDIT POSTER TEXT (no bg regen) ====================
 function setPreviewMode(mode) {
-  // mode: 'view' or 'edit' — inline display reliably overrides any utility class
+  // mode: 'view' or 'edit' — toggle the `hidden` Tailwind class so the
+  // companion display class (flex / block) on each element takes over.
   document.querySelectorAll('#modal-poster-preview .js-view-mode').forEach(el => {
-    el.style.display = mode === 'view' ? '' : 'none';
+    el.classList.toggle('hidden', mode !== 'view');
   });
   document.querySelectorAll('#modal-poster-preview .js-edit-mode').forEach(el => {
-    el.style.display = mode === 'edit' ? '' : 'none';
+    el.classList.toggle('hidden', mode !== 'edit');
   });
 }
 
@@ -1807,6 +1808,23 @@ async function triggerImageDownload(url, filename) {
   }
 }
 
+// ==================== BODY SCROLL LOCK FOR MODALS ====================
+// Lock the page scroll whenever any full-screen modal is visible. Modals in
+// this app all share the `fixed inset-0 ... z-50` pattern with a `hidden`
+// toggle, so we just check whether any are currently visible.
+function syncBodyScrollLock() {
+  const anyOpen = Array.from(document.querySelectorAll('[id^="modal-"]'))
+    .some(el => !el.classList.contains('hidden'));
+  document.body.style.overflow = anyOpen ? 'hidden' : '';
+}
+
+function watchModalsForScrollLock() {
+  const modals = document.querySelectorAll('[id^="modal-"]');
+  const obs = new MutationObserver(syncBodyScrollLock);
+  modals.forEach(m => obs.observe(m, { attributes: true, attributeFilter: ['class'] }));
+  syncBodyScrollLock();
+}
+
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
@@ -1814,4 +1832,5 @@ document.addEventListener('DOMContentLoaded', () => {
   navigate(initialPage, { fromPop: true });
   // Make sure history state has a page so back button works
   history.replaceState({ page: initialPage }, '', PAGE_TO_PATH[initialPage] || '/');
+  watchModalsForScrollLock();
 });
