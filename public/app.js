@@ -1742,10 +1742,7 @@ function setPreviewMode(mode) {
 function enterEditTextMode() {
   if (!currentPreviewPoster) return;
   const p = currentPreviewPoster;
-  if (!p.background_url) {
-    showToast('This poster was created before text editing was supported. Regenerate it once to enable editing.', 'info');
-    return;
-  }
+
   document.getElementById('edit-poster-headline').value = p.headline || '';
   document.getElementById('edit-poster-subtext').value = p.subtext || '';
   document.getElementById('edit-poster-tagline').value = p.tagline || '';
@@ -1755,6 +1752,10 @@ function enterEditTextMode() {
   const layouts = (posterOptions && posterOptions.layouts) || [{ value: 'auto', label: 'Auto / Surprise me' }];
   layoutSel.innerHTML = layouts.map(l => `<option value="${l.value}">${escHtml(l.label)}</option>`).join('');
   layoutSel.value = p.template || 'auto';
+
+  // Show / hide the "needs regenerate first" notice for legacy posters
+  const notice = document.getElementById('edit-poster-legacy-notice');
+  if (notice) notice.classList.toggle('hidden', Boolean(p.background_url));
 
   setPreviewMode('edit');
   lucide.createIcons();
