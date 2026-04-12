@@ -1722,6 +1722,8 @@ function renderPosterGridCard(p) {
   const occasionLabel = (posterOptions?.occasions.find(o => o.value === p.occasion)?.label) || p.occasion || '';
   const sizeLabel = (posterOptions?.sizes.find(s => s.value === p.size)?.label) || p.size || '';
   const langLabel = (posterOptions?.languages.find(l => l.value === p.language)?.label) || p.language || '';
+  let platforms = []; try { platforms = JSON.parse(p.published_platforms || '[]'); } catch {}
+  const isPublished = p.published_at && platforms.length;
   return `
     <div class="bg-white rounded-xl border border-gray-100 overflow-hidden group">
       <div class="bg-gray-100 relative cursor-pointer" onclick="openPosterPreview(${p.id})">
@@ -1729,6 +1731,7 @@ function renderPosterGridCard(p) {
         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
           <span class="text-white text-xs font-medium flex items-center gap-1.5"><i data-lucide="eye" class="w-4 h-4"></i> View</span>
         </div>
+        ${isPublished ? '<span class="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium shadow-sm"><i data-lucide="check-circle" class="w-3 h-3"></i> Published</span>' : ''}
       </div>
       <div class="p-4">
         <div class="flex items-center gap-2 mb-2 flex-wrap">
@@ -1760,16 +1763,20 @@ function renderPosterListCard(p) {
   const occasionLabel = (posterOptions?.occasions.find(o => o.value === p.occasion)?.label) || p.occasion || '';
   const sizeLabel = (posterOptions?.sizes.find(s => s.value === p.size)?.label) || p.size || '';
   const langLabel = (posterOptions?.languages.find(l => l.value === p.language)?.label) || p.language || '';
+  let platforms = []; try { platforms = JSON.parse(p.published_platforms || '[]'); } catch {}
+  const isPublished = p.published_at && platforms.length;
   return `
     <div class="bg-white rounded-xl border border-gray-100 flex items-center gap-4 p-3 hover:border-gray-200 transition">
-      <div class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 cursor-pointer" onclick="openPosterPreview(${p.id})">
+      <div class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 cursor-pointer relative" onclick="openPosterPreview(${p.id})">
         <img src="${p.image_url}" class="w-full h-full object-cover" />
+        ${isPublished ? '<span class="absolute bottom-0.5 right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center"><i data-lucide="check" class="w-2.5 h-2.5 text-white"></i></span>' : ''}
       </div>
       <div class="flex-1 min-w-0 cursor-pointer" onclick="openPosterPreview(${p.id})">
         <div class="flex items-center gap-2 mb-1 flex-wrap">
           <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-brand-50 text-brand-600 uppercase tracking-wide">${escHtml(occasionLabel)}</span>
           <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">${escHtml(sizeLabel)}</span>
           <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">${escHtml(langLabel)}</span>
+          ${isPublished ? '<span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">Published</span>' : ''}
         </div>
         <p class="text-sm font-medium text-gray-800 leading-snug truncate">${escHtml(p.headline || '—')}</p>
         <p class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(p.subtext || '')}</p>
@@ -1941,6 +1948,8 @@ async function openPosterPreview(id, preloaded) {
   if (poster.error) return showToast(poster.error, 'error');
   currentPreviewPoster = poster;
   setupPhoneticForPreview(poster.language);
+  populateCaptionSection(poster);
+  populatePublishSection(poster);
   cancelEditTextMode(); // always open in view mode
   document.getElementById('poster-preview-img').src = poster.image_url + '?t=' + Date.now();
   const occasionLabel = (posterOptions?.occasions.find(o => o.value === poster.occasion)?.label) || poster.occasion;
@@ -1958,6 +1967,233 @@ async function openPosterPreview(id, preloaded) {
   `;
   document.getElementById('modal-poster-preview').classList.remove('hidden');
   lucide.createIcons();
+}
+
+// ==================== SOCIAL MEDIA CAPTION ====================
+async function generatePosterCaption() {
+  if (!currentPreviewPoster) return;
+  const id = currentPreviewPoster.id;
+  const btn = document.getElementById('btn-generate-caption');
+  const regenBtn = document.getElementById('btn-regen-caption');
+  const area = document.getElementById('poster-caption-area');
+  const result = document.getElementById('poster-caption-result');
+  const titleEl = document.getElementById('poster-caption-title');
+  const textEl = document.getElementById('poster-caption-text');
+  const hashEl = document.getElementById('poster-caption-hashtags');
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generating...'; }
+  if (regenBtn) { regenBtn.disabled = true; }
+
+  try {
+    const res = await api(`/api/posters/${id}/generate-caption`, { method: 'POST' });
+    if (res.error) throw new Error(res.error);
+    const data = res.caption;
+    if (typeof data === 'object') {
+      titleEl.value = data.title || '';
+      textEl.value = data.caption || '';
+      hashEl.value = data.hashtags || '';
+    } else {
+      // Fallback for plain string response
+      titleEl.value = '';
+      textEl.value = data || '';
+      hashEl.value = '';
+    }
+    area.classList.add('hidden');
+    result.classList.remove('hidden');
+  } catch (err) {
+    showToast(err.message || 'Caption generation failed', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Generate Caption & Hashtags';
+    }
+    if (regenBtn) { regenBtn.disabled = false; }
+    lucide.createIcons();
+  }
+}
+
+function copyPosterCaption() {
+  const titleEl = document.getElementById('poster-caption-title');
+  const textEl = document.getElementById('poster-caption-text');
+  const hashEl = document.getElementById('poster-caption-hashtags');
+  const parts = [titleEl?.value, textEl?.value, hashEl?.value].filter(Boolean);
+  const full = parts.join('\n\n');
+  if (!full) return;
+  navigator.clipboard.writeText(full).then(() => {
+    const btn = document.getElementById('btn-copy-caption');
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i> Copied!';
+      btn.classList.add('text-green-600');
+      lucide.createIcons();
+      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-green-600'); lucide.createIcons(); }, 2000);
+    }
+  }).catch(() => {
+    textEl.select();
+    showToast('Press Ctrl+C to copy', 'info');
+  });
+}
+
+function resetCaptionSection() {
+  const area = document.getElementById('poster-caption-area');
+  const result = document.getElementById('poster-caption-result');
+  if (area) area.classList.remove('hidden');
+  if (result) result.classList.add('hidden');
+}
+
+async function savePosterCaption() {
+  if (!currentPreviewPoster) return;
+  const title = (document.getElementById('poster-caption-title')?.value || '').trim();
+  const caption = (document.getElementById('poster-caption-text')?.value || '').trim();
+  const hashtags = (document.getElementById('poster-caption-hashtags')?.value || '').trim();
+  await api(`/api/posters/${currentPreviewPoster.id}/caption`, {
+    method: 'PATCH', body: { title, caption, hashtags }
+  });
+  // Update local cache
+  currentPreviewPoster.caption_title = title;
+  currentPreviewPoster.caption_text = caption;
+  currentPreviewPoster.caption_hashtags = hashtags;
+}
+
+function populateCaptionSection(poster) {
+  const area = document.getElementById('poster-caption-area');
+  const result = document.getElementById('poster-caption-result');
+  const titleEl = document.getElementById('poster-caption-title');
+  const textEl = document.getElementById('poster-caption-text');
+  const hashEl = document.getElementById('poster-caption-hashtags');
+  if (poster.caption_title || poster.caption_text || poster.caption_hashtags) {
+    titleEl.value = poster.caption_title || '';
+    textEl.value = poster.caption_text || '';
+    hashEl.value = poster.caption_hashtags || '';
+    area.classList.add('hidden');
+    result.classList.remove('hidden');
+  } else {
+    titleEl.value = '';
+    textEl.value = '';
+    hashEl.value = '';
+    area.classList.remove('hidden');
+    result.classList.add('hidden');
+  }
+}
+
+function populatePublishSection(poster) {
+  const statusEl = document.getElementById('poster-publish-status');
+  const formEl = document.getElementById('poster-publish-form');
+  const linksEl = document.getElementById('poster-publish-links');
+  const dateEl = document.getElementById('poster-publish-date');
+  // Reset checkboxes
+  document.getElementById('publish-instagram').checked = false;
+  document.getElementById('publish-facebook').checked = false;
+  document.getElementById('publish-linkedin').checked = false;
+
+  let platforms = [];
+  try { platforms = JSON.parse(poster.published_platforms || '[]'); } catch {}
+  let links = {};
+  try { links = JSON.parse(poster.published_link || '{}'); } catch {
+    // Backward compat: old single-link format
+    if (typeof poster.published_link === 'string' && poster.published_link && !poster.published_link.startsWith('{')) {
+      platforms.forEach(p => { links[p] = poster.published_link; });
+    }
+  }
+
+  if (poster.published_at && platforms.length) {
+    // Show published status
+    statusEl.classList.remove('hidden');
+    formEl.classList.add('hidden');
+    dateEl.textContent = timeAgo(poster.published_at);
+    const colors = { instagram: 'bg-pink-50 text-pink-700 border-pink-100', facebook: 'bg-blue-50 text-blue-700 border-blue-100', linkedin: 'bg-sky-50 text-sky-700 border-sky-100' };
+    const icons = { instagram: 'instagram', facebook: 'facebook', linkedin: 'linkedin' };
+    linksEl.innerHTML = platforms.map(p => {
+      const url = links[p] || '';
+      const shortUrl = url.length > 45 ? url.slice(0, 45) + '...' : url;
+      return `<div class="flex items-center gap-2 p-2 rounded-lg ${colors[p] || 'bg-gray-50 text-gray-600 border-gray-100'} border text-xs">
+        <span class="font-medium capitalize flex-shrink-0">${escHtml(p)}</span>
+        ${url ? `<a href="${escHtml(url)}" target="_blank" class="truncate hover:underline flex items-center gap-1"><i data-lucide="external-link" class="w-3 h-3 flex-shrink-0"></i>${escHtml(shortUrl)}</a>` : '<span class="text-gray-400">No link</span>'}
+      </div>`;
+    }).join('');
+    // Pre-fill form for editing
+    platforms.forEach(p => {
+      const cb = document.getElementById('publish-' + p);
+      if (cb) cb.checked = true;
+    });
+    _publishLinks = { ...links };
+    onPublishPlatformToggle();
+    // Fill link values after inputs are rendered
+    platforms.forEach(p => {
+      const inp = document.getElementById('publish-link-' + p);
+      if (inp && links[p]) inp.value = links[p];
+    });
+  } else {
+    statusEl.classList.add('hidden');
+    formEl.classList.remove('hidden');
+    _publishLinks = {};
+    onPublishPlatformToggle();
+  }
+  lucide.createIcons();
+}
+
+let _publishLinks = {};
+
+function onPublishPlatformToggle() {
+  const container = document.getElementById('publish-links-inputs');
+  const btn = document.getElementById('btn-mark-published');
+  const platformIds = ['instagram', 'facebook', 'linkedin'];
+  const checked = platformIds.filter(p => document.getElementById('publish-' + p)?.checked);
+  // Save current input values before re-rendering
+  platformIds.forEach(p => {
+    const inp = document.getElementById('publish-link-' + p);
+    if (inp) _publishLinks[p] = inp.value;
+  });
+  const labels = { instagram: 'Instagram post URL', facebook: 'Facebook post URL', linkedin: 'LinkedIn post URL' };
+  const placeholders = { instagram: 'https://instagram.com/p/...', facebook: 'https://facebook.com/...', linkedin: 'https://linkedin.com/posts/...' };
+  container.innerHTML = checked.map(p => `
+    <div>
+      <label class="block text-[11px] text-gray-500 mb-1">${labels[p]}</label>
+      <input type="url" id="publish-link-${p}" placeholder="${placeholders[p]}" value="${escHtml(_publishLinks[p] || '')}"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200">
+    </div>
+  `).join('');
+  if (checked.length) {
+    btn.classList.remove('hidden');
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+
+function togglePublishForm(show) {
+  document.getElementById('poster-publish-status').classList.toggle('hidden', show);
+  document.getElementById('poster-publish-form').classList.toggle('hidden', !show);
+}
+
+async function markPosterPublished() {
+  if (!currentPreviewPoster) return;
+  const platformIds = ['instagram', 'facebook', 'linkedin'];
+  const platforms = platformIds.filter(p => document.getElementById('publish-' + p)?.checked);
+  if (!platforms.length) return showToast('Select at least one platform', 'error');
+  const links = {};
+  const missing = [];
+  platforms.forEach(p => {
+    const val = (document.getElementById('publish-link-' + p)?.value || '').trim();
+    if (val) links[p] = val; else missing.push(p);
+  });
+  if (missing.length) return showToast('Enter the post URL for: ' + missing.join(', '), 'error');
+  const btn = document.getElementById('btn-mark-published');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...'; }
+  try {
+    const res = await api(`/api/posters/${currentPreviewPoster.id}/publish`, {
+      method: 'PATCH', body: { platforms, links }
+    });
+    if (res.error) throw new Error(res.error);
+    currentPreviewPoster = res.poster;
+    populatePublishSection(res.poster);
+    showToast('Marked as published', 'success');
+    loadPosters(); // refresh gallery badges
+  } catch (err) {
+    showToast(err.message || 'Failed to update', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i> Mark as Published'; }
+    lucide.createIcons();
+  }
 }
 
 async function regenerateCurrentPoster() {
@@ -2296,6 +2532,57 @@ function computeDefaultFontSizes({ width, height, template, size }) {
   }
 }
 
+// Mirror of the gap ratios in services/poster-generator.js so the edit form
+// shows the current effective spacing for each layout.
+function computeDefaultSpacing({ width, height, template, size }) {
+  const base = Math.min(width, height);
+  let t = size === 'youtube' ? 'youtube-thumb' : (template || 'center-classic');
+  if (t === 'auto') t = 'center-classic';
+
+  switch (t) {
+    case 'center-classic':
+      return { headlineSubtext: Math.round(base * 0.025), headlineTagline: Math.round(base * 0.025) };
+    case 'bottom-left':
+      return { headlineSubtext: Math.round(base * 0.025), headlineTagline: Math.round(base * 0.022) };
+    case 'top-hero':
+      return { headlineSubtext: Math.round(base * 0.03),  headlineTagline: Math.round(base * 0.025) };
+    case 'minimal-center':
+      return { headlineSubtext: Math.round(base * 0.028), headlineTagline: 0 };
+    case 'youtube-thumb':
+      return { headlineSubtext: Math.round(base * 0.03),  headlineTagline: 0 };
+    default:
+      return { headlineSubtext: Math.round(base * 0.025), headlineTagline: Math.round(base * 0.025) };
+  }
+}
+
+// Re-fill spacing inputs for the current layout. Follows the same pattern
+// as refreshEditFontSizes: prefer saved override, fall back to computed
+// defaults, and disable headlineTagline when the layout skips the tagline.
+function refreshEditSpacing() {
+  if (!currentPreviewPoster) return;
+  const p = currentPreviewPoster;
+  const template = document.getElementById('edit-poster-layout').value || p.template || 'auto';
+
+  let savedSpacing = {};
+  if (p.spacing) {
+    try { savedSpacing = JSON.parse(p.spacing) || {}; } catch {}
+  }
+
+  const defaults = computeDefaultSpacing({
+    width: p.width, height: p.height, template, size: p.size
+  });
+
+  const hsEl = document.getElementById('edit-poster-spacing-hs');
+  const htEl = document.getElementById('edit-poster-spacing-ht');
+
+  hsEl.value = savedSpacing.headlineSubtext || defaults.headlineSubtext || '';
+  htEl.value = savedSpacing.headlineTagline || defaults.headlineTagline || '';
+
+  const taglineUsed = defaults.headlineTagline > 0;
+  htEl.disabled = !taglineUsed;
+  htEl.placeholder = taglineUsed ? 'auto' : 'n/a';
+}
+
 // Re-fill the font size inputs based on the currently selected layout. Called
 // when the edit form opens and whenever the layout dropdown changes.
 function refreshEditFontSizes() {
@@ -2341,11 +2628,12 @@ function enterEditTextMode() {
   const layouts = (posterOptions && posterOptions.layouts) || [{ value: 'auto', label: 'Auto / Surprise me' }];
   layoutSel.innerHTML = layouts.map(l => `<option value="${l.value}">${escHtml(l.label)}</option>`).join('');
   layoutSel.value = p.template || 'auto';
-  // Recompute the font size inputs whenever the user switches layout.
-  layoutSel.onchange = refreshEditFontSizes;
+  // Recompute font sizes and spacing whenever the user switches layout.
+  layoutSel.onchange = () => { refreshEditFontSizes(); refreshEditSpacing(); };
 
-  // Pre-fill the font size inputs with the current effective sizes
+  // Pre-fill font size and spacing inputs with the current effective values
   refreshEditFontSizes();
+  refreshEditSpacing();
 
   // Show / hide the "needs regenerate first" notice for legacy posters
   const notice = document.getElementById('edit-poster-legacy-notice');
@@ -2374,12 +2662,20 @@ async function saveEditedText() {
   if (Number.isFinite(sSize) && sSize > 0) fontSizes.subtext  = sSize;
   if (Number.isFinite(tSize) && tSize > 0) fontSizes.tagline  = tSize;
 
+  // Collect spacing overrides (same pattern as font sizes)
+  const spacing = {};
+  const hsVal = Number(document.getElementById('edit-poster-spacing-hs').value);
+  const htVal = Number(document.getElementById('edit-poster-spacing-ht').value);
+  if (Number.isFinite(hsVal) && hsVal > 0) spacing.headlineSubtext = hsVal;
+  if (Number.isFinite(htVal) && htVal > 0) spacing.headlineTagline = htVal;
+
   const payload = {
     headline: document.getElementById('edit-poster-headline').value.trim(),
     subtext: document.getElementById('edit-poster-subtext').value.trim(),
     tagline: document.getElementById('edit-poster-tagline').value.trim(),
     template: document.getElementById('edit-poster-layout').value || 'auto',
-    fontSizes
+    fontSizes,
+    spacing
   };
   if (!payload.headline) return showToast('Headline cannot be empty', 'error');
 

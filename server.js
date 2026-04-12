@@ -712,6 +712,18 @@ function sanitizeFontSizes(raw) {
   return Object.keys(out).length ? out : null;
 }
 
+function sanitizeSpacing(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  for (const key of ['headlineSubtext', 'headlineTagline']) {
+    const v = Number(raw[key]);
+    if (Number.isFinite(v) && v > 0) {
+      out[key] = Math.max(0, Math.min(400, Math.round(v)));
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 app.get('/api/poster-options', (req, res) => {
   res.json({
     occasions: Object.entries(posterGenerator.OCCASIONS).map(([key, val]) => ({ value: key, label: val.label })),
@@ -736,19 +748,21 @@ app.get('/api/posters/:id', (req, res) => {
 });
 
 app.post('/api/posters/generate', async (req, res) => {
-  const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template, fontSizes } = req.body;
+  const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template, fontSizes, spacing } = req.body;
 
   // Store the user's *intent* (e.g. 'auto' or 'top-hero') so that a poster
   // generated with Auto re-randomises on regenerate while a locked one stays
   // locked. The resolved template is returned in the response for debugging.
   const templateIntent = template || 'auto';
   const fontSizeOverrides = sanitizeFontSizes(fontSizes);
+  const spacingOverrides = sanitizeSpacing(spacing);
 
   try {
     const result = await posterGenerator.generatePoster({
       occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline,
       template: templateIntent,
-      fontSizeOverrides
+      fontSizeOverrides,
+      spacingOverrides
     });
 
     // Save final image + raw background. The background is kept so users
@@ -763,8 +777,8 @@ app.post('/api/posters/generate', async (req, res) => {
     const backgroundUrl = `/posters/${bgFilename}`;
 
     const info = db.prepare(`
-      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height, template, background_url, font_sizes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO posters (occasion, custom_prompt, background_style, size, language, headline, subtext, tagline, image_url, width, height, template, background_url, font_sizes, spacing)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       occasion || 'custom',
       customPrompt || '',
@@ -779,7 +793,8 @@ app.post('/api/posters/generate', async (req, res) => {
       result.size.height,
       templateIntent,
       backgroundUrl,
-      fontSizeOverrides ? JSON.stringify(fontSizeOverrides) : null
+      fontSizeOverrides ? JSON.stringify(fontSizeOverrides) : null,
+      spacingOverrides ? JSON.stringify(spacingOverrides) : null
     );
 
     const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(info.lastInsertRowid);
@@ -890,6 +905,13 @@ app.post('/api/posters/:id/edit-text', async (req, res) => {
       try { fontSizeOverrides = sanitizeFontSizes(JSON.parse(poster.font_sizes)); } catch {}
     }
 
+    let spacingOverrides;
+    if (Object.prototype.hasOwnProperty.call(req.body, 'spacing')) {
+      spacingOverrides = sanitizeSpacing(req.body.spacing);
+    } else if (poster.spacing) {
+      try { spacingOverrides = sanitizeSpacing(JSON.parse(poster.spacing)); } catch {}
+    }
+
     const result = await posterGenerator.recomposePoster({
       background: bgPath,
       headline: req.body.headline ?? poster.headline,
@@ -898,7 +920,8 @@ app.post('/api/posters/:id/edit-text', async (req, res) => {
       template: req.body.template ?? poster.template,
       language: req.body.language ?? poster.language,
       size: poster.size,
-      fontSizeOverrides
+      fontSizeOverrides,
+      spacingOverrides
     });
 
     // Write the new final image under a new filename so the browser doesn't
@@ -919,12 +942,13 @@ app.post('/api/posters/:id/edit-text', async (req, res) => {
     db.prepare(`
       UPDATE posters SET
         headline = ?, subtext = ?, tagline = ?, template = ?, language = ?,
-        image_url = ?, font_sizes = ?, updated_at = datetime('now')
+        image_url = ?, font_sizes = ?, spacing = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
       result.copy.headline, result.copy.subtext, result.copy.tagline,
       newTemplate, newLanguage, imageUrl,
       fontSizeOverrides ? JSON.stringify(fontSizeOverrides) : null,
+      spacingOverrides ? JSON.stringify(spacingOverrides) : null,
       poster.id
     );
 
@@ -934,6 +958,61 @@ app.post('/api/posters/:id/edit-text', async (req, res) => {
     console.error('Poster edit-text error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+app.post('/api/posters/:id/generate-caption', async (req, res) => {
+  const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
+  if (!poster) return res.status(404).json({ error: 'Poster not found' });
+  try {
+    const caption = await posterGenerator.generateCaption({
+      headline: poster.headline,
+      subtext: poster.subtext,
+      tagline: poster.tagline,
+      occasion: poster.occasion,
+      language: poster.language
+    });
+    // Auto-save the generated caption
+    db.prepare("UPDATE posters SET caption_title = ?, caption_text = ?, caption_hashtags = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(caption.title || '', caption.caption || '', caption.hashtags || '', poster.id);
+    res.json({ success: true, caption });
+  } catch (err) {
+    console.error('Caption generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/posters/:id/caption', (req, res) => {
+  const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
+  if (!poster) return res.status(404).json({ error: 'Poster not found' });
+  const { title, caption, hashtags } = req.body;
+  db.prepare("UPDATE posters SET caption_title = ?, caption_text = ?, caption_hashtags = ?, updated_at = datetime('now') WHERE id = ?")
+    .run((title || '').slice(0, 500), (caption || '').slice(0, 5000), (hashtags || '').slice(0, 2000), poster.id);
+  res.json({ success: true });
+});
+
+app.patch('/api/posters/:id/publish', (req, res) => {
+  const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(req.params.id);
+  if (!poster) return res.status(404).json({ error: 'Poster not found' });
+  const { platforms, links } = req.body;
+  const allowed = ['instagram', 'facebook', 'linkedin'];
+  const platformArr = Array.isArray(platforms) ? platforms.filter(p => allowed.includes(p)) : [];
+  // links is an object: { instagram: "url", facebook: "url", ... }
+  const linksObj = {};
+  if (links && typeof links === 'object') {
+    for (const p of platformArr) {
+      const url = (links[p] || '').trim();
+      if (url) linksObj[p] = url;
+    }
+  }
+  // Require a link for every selected platform
+  const missing = platformArr.filter(p => !linksObj[p]);
+  if (missing.length) return res.status(400).json({ error: `Link required for: ${missing.join(', ')}` });
+  db.prepare(`UPDATE posters SET
+    published_platforms = ?, published_link = ?, published_at = datetime('now'),
+    status = 'published', updated_at = datetime('now') WHERE id = ?`)
+    .run(JSON.stringify(platformArr), JSON.stringify(linksObj), poster.id);
+  const updated = db.prepare('SELECT * FROM posters WHERE id = ?').get(poster.id);
+  res.json({ success: true, poster: updated });
 });
 
 app.delete('/api/posters/:id', (req, res) => {

@@ -943,9 +943,94 @@
             <!-- View mode meta -->
             <div class="js-view-mode text-sm text-gray-600" id="poster-preview-meta"></div>
 
+            <!-- Social media caption section (view mode only) -->
+            <div class="js-view-mode mt-5 pt-4 border-t border-gray-100">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Social Media Caption</h4>
+              </div>
+              <div id="poster-caption-area">
+                <button onclick="generatePosterCaption()" id="btn-generate-caption"
+                  class="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition">
+                  <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Caption & Hashtags
+                </button>
+              </div>
+              <div id="poster-caption-result" class="hidden mt-3 space-y-3">
+                <div>
+                  <label class="block text-[11px] text-gray-500 mb-1">Title</label>
+                  <input type="text" id="poster-caption-title" onchange="savePosterCaption()"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200">
+                </div>
+                <div>
+                  <label class="block text-[11px] text-gray-500 mb-1">Caption</label>
+                  <textarea id="poster-caption-text" rows="5" onchange="savePosterCaption()"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 leading-relaxed resize-y focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200"></textarea>
+                </div>
+                <div>
+                  <label class="block text-[11px] text-gray-500 mb-1">Hashtags</label>
+                  <textarea id="poster-caption-hashtags" rows="2" onchange="savePosterCaption()"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-brand-600 leading-relaxed resize-y focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200"></textarea>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button onclick="copyPosterCaption()" id="btn-copy-caption"
+                    class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy All
+                  </button>
+                  <button onclick="generatePosterCaption()" id="btn-regen-caption"
+                    class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Regenerate
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Publish tracking section (view mode only) -->
+            <div class="js-view-mode mt-5 pt-4 border-t border-gray-100">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Publish Status</h4>
+              </div>
+              <!-- Already published display -->
+              <div id="poster-publish-status" class="hidden">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Published
+                  </span>
+                  <span id="poster-publish-date" class="text-xs text-gray-400"></span>
+                </div>
+                <div id="poster-publish-links" class="space-y-1.5 mb-2"></div>
+                <button onclick="togglePublishForm(true)" class="text-xs text-gray-400 hover:text-gray-600">Edit</button>
+              </div>
+              <!-- Publish form -->
+              <div id="poster-publish-form">
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-[11px] text-gray-500 mb-1.5">Published on</label>
+                    <div class="flex items-center gap-3">
+                      <label class="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" id="publish-instagram" value="instagram" onchange="onPublishPlatformToggle()" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                        Instagram
+                      </label>
+                      <label class="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" id="publish-facebook" value="facebook" onchange="onPublishPlatformToggle()" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                        Facebook
+                      </label>
+                      <label class="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                        <input type="checkbox" id="publish-linkedin" value="linkedin" onchange="onPublishPlatformToggle()" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                        LinkedIn
+                      </label>
+                    </div>
+                  </div>
+                  <div id="publish-links-inputs" class="space-y-2"></div>
+                  <button onclick="markPosterPublished()" id="btn-mark-published"
+                    class="hidden flex items-center justify-center gap-2 w-full border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition font-medium">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i> Mark as Published
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <!-- Edit mode form -->
             <div class="js-edit-mode hidden">
-              <p class="text-xs text-gray-500 mb-3">Edit the copy and layout. The background image stays the same, so saving is fast (~2s).</p>
+              <p class="text-xs text-gray-500 mb-3">Edit copy, spacing, and font sizes. The background stays the same, so saving is fast (~2s).</p>
               <div id="edit-poster-legacy-notice" class="hidden mb-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
                 This poster was created before in-place text editing was added. Click <strong>Regenerate</strong> once to capture a reusable background, then come back and edit the text.
               </div>
@@ -1003,6 +1088,24 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Spacing overrides -->
+                <div class="pt-2 border-t border-gray-100">
+                  <p class="text-xs font-semibold text-gray-600 mb-2">Spacing (px)</p>
+                  <p class="text-[11px] text-gray-400 mb-2">Gap between elements. Clear a field to use the default spacing.</p>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-[11px] text-gray-500 mb-1">Headline ↕ Subtext</label>
+                      <input type="number" min="0" max="400" id="edit-poster-spacing-hs" placeholder="auto"
+                        class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm">
+                    </div>
+                    <div>
+                      <label class="block text-[11px] text-gray-500 mb-1">Headline ↕ Tagline</label>
+                      <input type="number" min="0" max="400" id="edit-poster-spacing-ht" placeholder="auto"
+                        class="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm">
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1015,7 +1118,7 @@
         <div class="js-view-mode flex justify-end gap-3 flex-wrap">
           <button onclick="closeModal('modal-poster-preview')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
           <button onclick="enterEditTextMode()" id="btn-poster-edit-text" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
-            <i data-lucide="type" class="w-4 h-4"></i> Edit Text
+            <i data-lucide="pencil-ruler" class="w-4 h-4"></i> Edit Design
           </button>
           <button onclick="regenerateCurrentPoster()" id="btn-poster-regen" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
             <i data-lucide="refresh-cw" class="w-4 h-4"></i> Regenerate
@@ -1027,7 +1130,7 @@
 
         <!-- Edit mode buttons -->
         <div class="js-edit-mode hidden flex justify-end gap-3 flex-wrap">
-          <button onclick="cancelEditTextMode()" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+          <button onclick="cancelEditTextMode()" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Back</button>
           <button onclick="saveEditedText()" id="btn-save-edit-text" class="flex items-center gap-2 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
             <i data-lucide="save" class="w-4 h-4"></i> Save Changes
           </button>

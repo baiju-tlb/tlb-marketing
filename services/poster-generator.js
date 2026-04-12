@@ -331,6 +331,7 @@ ${paletteRule}
 - Leave the CENTRAL AREA relatively clean or softly darkened so a large title can be clearly overlaid
 - Cinematic lighting, rich depth, premium editorial quality
 - Absolutely NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO WATERMARKS, NO TYPOGRAPHY of any kind anywhere in the image
+- The image MUST fill the ENTIRE canvas edge to edge. No borders, no margins, no padding, no grey areas around the edges.
 - Confident, uncluttered, never busy, never tacky.`;
   }
 
@@ -348,6 +349,7 @@ ${paletteRule}
 - Keep the composition balanced with clear breathing space, editorial and magazine-quality
 - Subtle vignette or soft darkening toward the bottom edge to help text legibility
 - Absolutely NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO WATERMARKS, NO TYPOGRAPHY of any kind anywhere in the image
+- The image MUST fill the ENTIRE canvas edge to edge. No borders, no margins, no padding, no grey areas around the edges. Content goes right up to every edge.
 - Premium, confident, uncluttered. Never busy, never tacky.`;
 }
 
@@ -480,7 +482,7 @@ function computeFooter({ width, height, base, align = 'center', padX = 0, logoWi
 // Compute the full layout for a given template. Each layout function wraps the
 // actual copy, positions every text block, the logo, and defines the gradient
 // stops. buildOverlaySvg just reads the returned geometry and draws it.
-function computePosterLayout({ width, height, template, headline, subtext, tagline, fontSizeOverrides }) {
+function computePosterLayout({ width, height, template, headline, subtext, tagline, fontSizeOverrides, spacingOverrides }) {
   const map = {
     'center-classic': layoutCenterClassic,
     'bottom-left':    layoutBottomLeft,
@@ -489,10 +491,10 @@ function computePosterLayout({ width, height, template, headline, subtext, tagli
     'youtube-thumb':  layoutYoutube
   };
   const fn = map[template] || map['center-classic'];
-  return fn({ width, height, headline, subtext, tagline, fontSizeOverrides: fontSizeOverrides || {} });
+  return fn({ width, height, headline, subtext, tagline, fontSizeOverrides: fontSizeOverrides || {}, spacingOverrides: spacingOverrides || {} });
 }
 
-function layoutCenterClassic({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
+function layoutCenterClassic({ width, height, headline, subtext, tagline, fontSizeOverrides = {}, spacingOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
@@ -517,12 +519,12 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline, fontSi
   const subtextBottom = footer.footerTop - subtextGapBelow;
   const subtextStartY = subtextBottom - subtextBlockHeight + subtextSize;
 
-  const headlineGapBelow = Math.round(base * 0.025);
+  const headlineGapBelow = spacingOverrides.headlineSubtext || Math.round(base * 0.025);
   const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
   const headlineBottom = subtextBottom - subtextBlockHeight - headlineGapBelow;
   const headlineStartY = headlineBottom - headlineBlockHeight + headlineSize;
 
-  const taglineGap = Math.round(base * 0.025);
+  const taglineGap = spacingOverrides.headlineTagline || Math.round(base * 0.025);
   const taglineY = headlineStartY - headlineSize - taglineGap;
 
   const contentTop = Math.max(0, taglineY - Math.round(base * 0.15));
@@ -559,7 +561,7 @@ function layoutCenterClassic({ width, height, headline, subtext, tagline, fontSi
   };
 }
 
-function layoutBottomLeft({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
+function layoutBottomLeft({ width, height, headline, subtext, tagline, fontSizeOverrides = {}, spacingOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
@@ -590,12 +592,12 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline, fontSizeO
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
   const subtextStartY = textBottom - subtextBlockHeight + subtextSize;
 
-  const headlineGapBelow = Math.round(base * 0.025);
+  const headlineGapBelow = spacingOverrides.headlineSubtext || Math.round(base * 0.025);
   const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
   const headlineBottom = textBottom - subtextBlockHeight - headlineGapBelow;
   const headlineStartY = headlineBottom - headlineBlockHeight + headlineSize;
 
-  const taglineGap = Math.round(base * 0.022);
+  const taglineGap = spacingOverrides.headlineTagline || Math.round(base * 0.022);
   const taglineY = headlineStartY - headlineSize - taglineGap;
 
   const contentTop = Math.max(0, taglineY - Math.round(base * 0.12));
@@ -630,7 +632,7 @@ function layoutBottomLeft({ width, height, headline, subtext, tagline, fontSizeO
   };
 }
 
-function layoutTopHero({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
+function layoutTopHero({ width, height, headline, subtext, tagline, fontSizeOverrides = {}, spacingOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
@@ -653,7 +655,7 @@ function layoutTopHero({ width, height, headline, subtext, tagline, fontSizeOver
 
   // Tagline at the very top, headline right underneath
   const taglineY = padTop;
-  const taglineGap = Math.round(base * 0.025);
+  const taglineGap = spacingOverrides.headlineTagline || Math.round(base * 0.025);
   const headlineStartY = taglineY + taglineGap + headlineSize;
   const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
 
@@ -661,7 +663,7 @@ function layoutTopHero({ width, height, headline, subtext, tagline, fontSizeOver
   const footer = computeFooter({ width, height, base, align: 'center', logoWidthRatio: 0.20 });
 
   // Subtext directly above the footer block
-  const subtextGapBelow = Math.round(base * 0.03);
+  const subtextGapBelow = spacingOverrides.headlineSubtext || Math.round(base * 0.03);
   const subtextBottom = footer.footerTop - subtextGapBelow;
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.35;
   const subtextStartY = subtextBottom - subtextBlockHeight + subtextSize;
@@ -703,7 +705,7 @@ function layoutTopHero({ width, height, headline, subtext, tagline, fontSizeOver
   };
 }
 
-function layoutMinimalCenter({ width, height, headline, subtext, tagline, fontSizeOverrides = {} }) {
+function layoutMinimalCenter({ width, height, headline, subtext, tagline, fontSizeOverrides = {}, spacingOverrides = {} }) {
   const base = Math.min(width, height);
   const isLandscape = width > height;
 
@@ -728,7 +730,7 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline, fontSi
   const headlineStartY = centerY - Math.round(headlineBlockHeight / 2) + headlineSize;
   const headlineBottom = headlineStartY + headlineBlockHeight - headlineSize;
 
-  const subtextGap = Math.round(base * 0.028);
+  const subtextGap = spacingOverrides.headlineSubtext || Math.round(base * 0.028);
   const subtextStartY = headlineBottom + subtextGap + subtextSize;
 
   // Small footer (logo + phone + url) at the bottom
@@ -763,7 +765,7 @@ function layoutMinimalCenter({ width, height, headline, subtext, tagline, fontSi
 
 // YouTube thumbnail layout: 16:9 canvas, big centred title, optional subtext
 // underneath. No logo, no phone, no url, no tagline — just the title.
-function layoutYoutube({ width, height, headline, subtext, fontSizeOverrides = {} }) {
+function layoutYoutube({ width, height, headline, subtext, fontSizeOverrides = {}, spacingOverrides = {} }) {
   const base = Math.min(width, height);
 
   const targetHeadlineSize = fontSizeOverrides.headline || Math.round(base * 0.13);
@@ -784,7 +786,7 @@ function layoutYoutube({ width, height, headline, subtext, fontSizeOverrides = {
 
   const headlineBlockHeight = headlineLines.length * headlineSize * 1.05;
   const subtextBlockHeight = subtextLines.length * subtextSize * 1.3;
-  const gap = subtextLines.length ? Math.round(base * 0.03) : 0;
+  const gap = subtextLines.length ? (spacingOverrides.headlineSubtext || Math.round(base * 0.03)) : 0;
   const totalHeight = headlineBlockHeight + gap + subtextBlockHeight;
 
   const blockTop = Math.round(centerY - totalHeight / 2);
@@ -936,14 +938,16 @@ async function sampleLuminance(buffer, { left, top, width, height }) {
 // path) and produces the final poster PNG by adding the SVG overlay and the
 // logo. No Gemini calls — used by both generatePoster (with a freshly
 // generated bg) and the edit-text endpoint (with a previously saved bg).
-async function recomposePoster({ background, headline, subtext, tagline, template, language = 'english', size = 'square', fontSizeOverrides }) {
+async function recomposePoster({ background, headline, subtext, tagline, template, language = 'english', size = 'square', fontSizeOverrides, spacingOverrides }) {
   const sizeCfg = SIZES[size] || SIZES.square;
   const lang = LANGUAGES[language] || LANGUAGES.english;
   const { width, height } = sizeCfg;
 
   const bgInput = Buffer.isBuffer(background) ? background : fs.readFileSync(background);
-  // Defensive resize: cheap if already correct, safety net if it isn't.
-  const bgResized = await sharp(bgInput)
+  // Gemini sometimes returns images with grey borders/margins baked in.
+  // Trim those away first, then cover-resize to the exact poster dimensions.
+  const trimmed = await sharp(bgInput).trim({ threshold: 30 }).toBuffer();
+  const bgResized = await sharp(trimmed)
     .resize(width, height, { fit: 'cover', position: 'center' })
     .toBuffer();
 
@@ -968,7 +972,8 @@ async function recomposePoster({ background, headline, subtext, tagline, templat
     headline: copy.headline,
     subtext: copy.subtext,
     tagline: copy.tagline,
-    fontSizeOverrides
+    fontSizeOverrides,
+    spacingOverrides
   });
 
   // Pick the dark/white text+logo variant by sampling luminance. For branded
@@ -1028,7 +1033,7 @@ async function recomposePoster({ background, headline, subtext, tagline, templat
 }
 
 // ==================== MAIN POSTER BUILDER ====================
-async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template, fontSizeOverrides }) {
+async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template, fontSizeOverrides, spacingOverrides }) {
   const sizeCfg = SIZES[size] || SIZES.square;
 
   // 1. Copy: use user-provided or generate with AI
@@ -1060,11 +1065,51 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
     template,
     language,
     size,
-    fontSizeOverrides
+    fontSizeOverrides,
+    spacingOverrides
   });
+}
+
+// ==================== SOCIAL MEDIA CAPTION ====================
+// Generate a ready-to-post caption + hashtags for Instagram / Facebook
+// based on the poster's content. Uses Gemini text-only (fast, cheap).
+async function generateCaption({ headline, subtext, tagline, occasion, language }) {
+  const occ = OCCASIONS[occasion] || OCCASIONS.custom;
+  const lang = LANGUAGES[language] || LANGUAGES.english;
+  const prompt = `You are a social media copywriter for "The Land Bankers" (TLB), India's first land rating platform.
+
+Write a social media POST TITLE, CAPTION, and HASHTAGS for an Instagram / Facebook post. The post features a branded poster with this content:
+
+Headline: ${headline || '(none)'}
+Subtext: ${subtext || '(none)'}
+Tagline: ${tagline || '(none)'}
+Occasion / Topic: ${occ.context || 'general land and property'}
+Language: ${lang.label}
+
+Return ONLY valid JSON (no markdown, no code fences, no extra text) in this exact format:
+{
+  "title": "A short punchy post title (5-10 words, no hashtags, grabs attention)",
+  "caption": "The caption body (2-4 short paragraphs, conversational tone, includes a call-to-action like DM us / Link in bio / Contact us today). Write in English even if the poster is in a regional language.",
+  "hashtags": "#TheLandBankers #TLB #RealEstate ... (8-12 hashtags on one line, always include #TheLandBankers #TLB, mix broad and niche)"
+}`;
+
+  const raw = await geminiText(prompt, { temperature: 0.85, maxTokens: 1024, noThinking: true });
+  try {
+    // Strip any markdown code fences Gemini might add despite the instruction
+    const cleaned = (raw || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      title: (parsed.title || '').trim(),
+      caption: (parsed.caption || '').trim(),
+      hashtags: (parsed.hashtags || '').trim()
+    };
+  } catch {
+    // Fallback: return the raw text as caption if JSON parsing fails
+    return { title: '', caption: (raw || '').trim(), hashtags: '' };
+  }
 }
 
 module.exports = {
   OCCASIONS, LANGUAGES, SIZES, BG_STYLES, LAYOUTS, LAYOUT_TEMPLATES, TLB_BRAND,
-  generatePoster, generatePosterCopy, generateBackgroundImage, recomposePoster
+  generatePoster, generatePosterCopy, generateBackgroundImage, recomposePoster, generateCaption
 };

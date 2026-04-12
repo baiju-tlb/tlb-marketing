@@ -121,6 +121,13 @@ function addColumnIfMissing(table, column, definition) {
 addColumnIfMissing('posters', 'template', 'TEXT');
 addColumnIfMissing('posters', 'background_url', 'TEXT');
 addColumnIfMissing('posters', 'font_sizes', 'TEXT'); // JSON: { headline, subtext, tagline }
+addColumnIfMissing('posters', 'spacing', 'TEXT');    // JSON: { headlineSubtext, headlineTagline }
+addColumnIfMissing('posters', 'caption_title', 'TEXT');
+addColumnIfMissing('posters', 'caption_text', 'TEXT');
+addColumnIfMissing('posters', 'caption_hashtags', 'TEXT');
+addColumnIfMissing('posters', 'published_platforms', 'TEXT'); // JSON array: ["instagram","facebook"]
+addColumnIfMissing('posters', 'published_link', 'TEXT');
+addColumnIfMissing('posters', 'published_at', 'TEXT');
 
 // Insert default settings
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
