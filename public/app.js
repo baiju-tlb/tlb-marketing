@@ -1896,26 +1896,56 @@ async function openPosterModal() {
   lucide.createIcons();
 }
 
-async function submitPosterGenerate() {
-  const body = {
-    occasion: document.getElementById('poster-occasion').value,
-    customPrompt: document.getElementById('poster-prompt').value.trim(),
-    backgroundStyle: posterSelectedBgStyle,
-    size: posterSelectedSize,
-    language: posterSelectedLanguage,
-    template: posterSelectedLayout || 'auto',
-    headline: document.getElementById('poster-headline').value.trim(),
-    subtext: document.getElementById('poster-subtext').value.trim(),
-    tagline: document.getElementById('poster-tagline').value.trim()
+// ==================== REFERENCE IMAGE ====================
+let _posterRefFile = null;
+
+function onRefImageSelected(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Please select an image file', 'error'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('Image must be under 10 MB', 'error'); return; }
+  _posterRefFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('poster-ref-thumb').src = e.target.result;
+    document.getElementById('poster-ref-name').textContent = file.name;
+    document.getElementById('poster-ref-placeholder').classList.add('hidden');
+    document.getElementById('poster-ref-preview').classList.remove('hidden');
+    document.getElementById('poster-ref-actions').classList.remove('hidden');
   };
+  reader.readAsDataURL(file);
+}
+
+function clearRefImage() {
+  _posterRefFile = null;
+  document.getElementById('poster-ref-input').value = '';
+  document.getElementById('poster-ref-placeholder').classList.remove('hidden');
+  document.getElementById('poster-ref-preview').classList.add('hidden');
+  document.getElementById('poster-ref-actions').classList.add('hidden');
+}
+
+async function submitPosterGenerate() {
+  const fd = new FormData();
+  fd.append('occasion', document.getElementById('poster-occasion').value);
+  fd.append('customPrompt', document.getElementById('poster-prompt').value.trim());
+  fd.append('backgroundStyle', posterSelectedBgStyle);
+  fd.append('size', posterSelectedSize);
+  fd.append('language', posterSelectedLanguage);
+  fd.append('template', posterSelectedLayout || 'auto');
+  fd.append('headline', document.getElementById('poster-headline').value.trim());
+  fd.append('subtext', document.getElementById('poster-subtext').value.trim());
+  fd.append('tagline', document.getElementById('poster-tagline').value.trim());
+  if (_posterRefFile) fd.append('referenceImage', _posterRefFile);
 
   showPosterGenerating();
 
   try {
-    const result = await api('/api/posters/generate', { method: 'POST', body });
+    const res = await fetch(`${API}/api/posters/generate`, { method: 'POST', body: fd });
+    const result = await res.json();
     if (result.error) throw new Error(result.error);
     hidePosterGenerating();
     closeModal('modal-poster');
+    clearRefImage();
     fireConfetti();
     showToast('Poster created!', 'success');
     loadPosters();

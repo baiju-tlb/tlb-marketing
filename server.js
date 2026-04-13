@@ -14,6 +14,8 @@ const posterGenerator = require('./services/poster-generator');
 const linkedin = require('./services/linkedin');
 const { startScheduler } = require('./services/scheduler');
 const fs = require('fs');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB max
 
 const app = express();
 app.use(cors());
@@ -747,22 +749,24 @@ app.get('/api/posters/:id', (req, res) => {
   res.json(poster);
 });
 
-app.post('/api/posters/generate', async (req, res) => {
+app.post('/api/posters/generate', upload.single('referenceImage'), async (req, res) => {
   const { occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline, template, fontSizes, spacing } = req.body;
 
   // Store the user's *intent* (e.g. 'auto' or 'top-hero') so that a poster
   // generated with Auto re-randomises on regenerate while a locked one stays
   // locked. The resolved template is returned in the response for debugging.
   const templateIntent = template || 'auto';
-  const fontSizeOverrides = sanitizeFontSizes(fontSizes);
-  const spacingOverrides = sanitizeSpacing(spacing);
+  const fontSizeOverrides = sanitizeFontSizes(typeof fontSizes === 'string' ? JSON.parse(fontSizes || 'null') : fontSizes);
+  const spacingOverrides = sanitizeSpacing(typeof spacing === 'string' ? JSON.parse(spacing || 'null') : spacing);
+  const referenceImage = req.file ? req.file.buffer : null;
 
   try {
     const result = await posterGenerator.generatePoster({
       occasion, customPrompt, backgroundStyle, size, language, headline, subtext, tagline,
       template: templateIntent,
       fontSizeOverrides,
-      spacingOverrides
+      spacingOverrides,
+      referenceImage
     });
 
     // Save final image + raw background. The background is kept so users

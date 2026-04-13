@@ -813,6 +813,28 @@
             <p class="text-xs text-gray-400 mt-1">Want off-brand colours (vibrant, pastel, monochrome)? Say so here. Leave blank to stay on the TLB navy + teal palette.</p>
           </div>
 
+          <!-- Reference image -->
+          <div>
+            <label class="block text-sm text-gray-500 mb-1">Reference Image <span class="text-gray-300 font-normal">(optional)</span></label>
+            <div id="poster-ref-upload" class="relative border-2 border-dashed border-gray-200 rounded-lg p-4 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/30 transition"
+              onclick="document.getElementById('poster-ref-input').click()">
+              <input type="file" id="poster-ref-input" accept="image/*" class="hidden" onchange="onRefImageSelected(this)">
+              <div id="poster-ref-placeholder" class="flex flex-col items-center gap-1.5">
+                <i data-lucide="image-plus" class="w-6 h-6 text-gray-300"></i>
+                <p class="text-xs text-gray-400">Click to attach a reference image for the AI to use as inspiration</p>
+              </div>
+              <div id="poster-ref-preview" class="hidden">
+                <img id="poster-ref-thumb" class="max-h-28 mx-auto rounded-lg shadow-sm" />
+                <p id="poster-ref-name" class="text-xs text-gray-500 mt-1.5 truncate"></p>
+              </div>
+            </div>
+            <div id="poster-ref-actions" class="hidden flex items-center gap-2 mt-1.5">
+              <button type="button" onclick="clearRefImage()" class="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                <i data-lucide="x" class="w-3 h-3"></i> Remove
+              </button>
+            </div>
+          </div>
+
           <!-- Size (selectable tags) -->
           <div>
             <label class="block text-sm text-gray-500 mb-2">Size</label>

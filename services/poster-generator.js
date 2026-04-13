@@ -225,18 +225,28 @@ async function geminiText(prompt, { temperature = 0.8, maxTokens = 512, noThinki
   return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 }
 
-async function geminiImage(prompt) {
+async function geminiImage(prompt, referenceImageBuffer) {
+  const parts = [];
+  if (referenceImageBuffer) {
+    parts.push({
+      inlineData: {
+        mimeType: 'image/png',
+        data: referenceImageBuffer.toString('base64')
+      }
+    });
+  }
+  parts.push({ text: prompt });
   const res = await fetchWithRetry(`${GEMINI_IMAGE_URL}?key=${GEMINI_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
     })
   });
   const data = await res.json();
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  const imagePart = parts.find(p => p.inlineData);
+  const resultParts = data.candidates?.[0]?.content?.parts || [];
+  const imagePart = resultParts.find(p => p.inlineData);
   if (!imagePart) throw new Error('No image returned from Gemini');
   return Buffer.from(imagePart.inlineData.data, 'base64');
 }
@@ -302,7 +312,7 @@ Rules:
 }
 
 // ==================== BACKGROUND PROMPT ====================
-async function generateBackgroundPrompt({ occasion, customPrompt, backgroundStyle, size }) {
+async function generateBackgroundPrompt({ occasion, customPrompt, backgroundStyle, size, referenceImage }) {
   const occ = OCCASIONS[occasion] || OCCASIONS.custom;
   const bg = BG_STYLES[backgroundStyle] || BG_STYLES.graphics;
   const sizeCfg = SIZES[size] || SIZES.square;
@@ -310,6 +320,7 @@ async function generateBackgroundPrompt({ occasion, customPrompt, backgroundStyl
   // Palette direction: if the user brief mentions any colour/mood cues, they take
   // precedence over the default brand palette. Otherwise stick to TLB navy + teal.
   const hasBrief = Boolean(customPrompt && customPrompt.trim());
+  const refNote = referenceImage ? '\n- A REFERENCE IMAGE is attached. Use it as visual inspiration for style, mood, composition, or subject matter. Adapt it to fit the requirements below, do NOT simply copy it.' : '';
   const paletteRule = hasBrief
     ? `- Colour and mood direction: follow the user brief above exactly. If the brief mentions specific colours, moods, or a palette (e.g. "vibrant pinks", "monochrome gold", "warm pastel"), those OVERRIDE any default brand palette. Do NOT add TLB navy or teal unless the brief asks for it.`
     : `- Colour palette: use TLB brand palette only — dark navy (#0C1421), dark slate (#101828), TLB teal (#30B0A4), soft teal (#A8E2DB). Do not introduce other colours.`;
@@ -318,7 +329,7 @@ async function generateBackgroundPrompt({ occasion, customPrompt, backgroundStyl
   // title will be overlaid in the middle instead of the bottom. No branding.
   if (sizeCfg.noBranding) {
     return `Create a premium YouTube THUMBNAIL background image.
-
+${refNote}
 Concept / Topic: ${occ.context || 'land, property, or business topic in India'}
 ${hasBrief ? `User brief (HIGHEST PRIORITY — follow this for mood, colours, subject details): ${customPrompt.trim()}` : ''}
 
@@ -336,7 +347,7 @@ ${paletteRule}
   }
 
   return `Create a premium social media poster BACKGROUND image for "The Land Bankers" (TLB), India's first land rating platform.
-
+${refNote}
 Concept / Occasion: ${occ.context || 'land and property branding in India'}
 ${hasBrief ? `User brief (HIGHEST PRIORITY — follow this for mood, colours, subject details): ${customPrompt.trim()}` : ''}
 
@@ -355,7 +366,7 @@ ${paletteRule}
 
 async function generateBackgroundImage(opts) {
   const prompt = await generateBackgroundPrompt(opts);
-  return await geminiImage(prompt);
+  return await geminiImage(prompt, opts.referenceImage);
 }
 
 // ==================== SVG OVERLAY ====================
@@ -1033,7 +1044,7 @@ async function recomposePoster({ background, headline, subtext, tagline, templat
 }
 
 // ==================== MAIN POSTER BUILDER ====================
-async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template, fontSizeOverrides, spacingOverrides }) {
+async function generatePoster({ occasion = 'custom', customPrompt = '', backgroundStyle = 'graphics', size = 'square', language = 'english', headline, subtext, tagline, template, fontSizeOverrides, spacingOverrides, referenceImage }) {
   const sizeCfg = SIZES[size] || SIZES.square;
 
   // 1. Copy: use user-provided or generate with AI
@@ -1054,7 +1065,7 @@ async function generatePoster({ occasion = 'custom', customPrompt = '', backgrou
   }
 
   // 2. Background image from Gemini
-  const bgBuffer = await generateBackgroundImage({ occasion, customPrompt, backgroundStyle, size });
+  const bgBuffer = await generateBackgroundImage({ occasion, customPrompt, backgroundStyle, size, referenceImage });
 
   // 3. Compose final image (text + logo over background) via the shared helper
   return await recomposePoster({
