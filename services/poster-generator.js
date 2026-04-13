@@ -188,7 +188,7 @@ const BG_STYLES = {
   },
   painting: {
     label: 'Art Painting',
-    desc: 'warm painterly digital illustration in a rich acrylic or gouache painting style with visible brushstrokes, soft blended colours, and a storybook aesthetic. Think Indian children book illustration or Amul-girl style art. Scenes feature everyday Indian life, people, street scenes, nature, festivals, rendered with thick paint texture, warm saturated tones, soft golden or ambient lighting, and a nostalgic heartfelt mood. Not photorealistic, not flat vector, purely painted and textured'
+    desc: 'warm digital painting illustration in the style of popular Indian Instagram comic artists (like ArtOfChai). Characters have slightly exaggerated cartoon proportions with large expressive round eyes, soft rounded faces, and warm skin tones. The rendering mixes clean ink outlines with loose watercolour and gouache washes, visible pencil or brush texture on a slightly textured paper-like background. Colour palette is soft pastels with warm peach, yellow, lavender, and teal washes bleeding softly at the edges. Scenes show relatable everyday Indian moments, people, families, emotions. The mood is heartfelt, wholesome, and emotionally warm. Not photorealistic, not flat vector, not 3D. Think hand-painted storybook meets modern Indian webcomic art'
   }
 };
 
