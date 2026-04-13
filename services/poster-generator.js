@@ -351,7 +351,7 @@ ${paletteRule}
 - Eye-catching and high contrast, suitable for a YouTube thumbnail
 - Leave the CENTRAL AREA relatively clean or softly darkened so a large title can be clearly overlaid
 - Cinematic lighting, rich depth, premium editorial quality
-- Absolutely NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO WATERMARKS, NO TYPOGRAPHY of any kind anywhere in the image
+- CRITICAL: The image must contain ZERO text, ZERO words, ZERO letters, ZERO numbers, ZERO logos, ZERO watermarks, ZERO brand names, ZERO typography of any kind anywhere. Not even decorative or blurry text. If you are tempted to add any text or logo, DO NOT. This is a strict requirement
 - The image MUST fill the ENTIRE canvas edge to edge. No borders, no margins, no padding, no grey areas around the edges.
 - Confident, uncluttered, never busy, never tacky.`;
   }
@@ -369,7 +369,7 @@ ${paletteRule}
 - Leave the LOWER HALF of the image relatively clean or softly darkened so text and logo can be clearly overlaid on top
 - Keep the composition balanced with clear breathing space, editorial and magazine-quality
 - Subtle vignette or soft darkening toward the bottom edge to help text legibility
-- Absolutely NO TEXT, NO WORDS, NO LETTERS, NO LOGOS, NO WATERMARKS, NO TYPOGRAPHY of any kind anywhere in the image
+- CRITICAL: The image must contain ZERO text, ZERO words, ZERO letters, ZERO numbers, ZERO logos, ZERO watermarks, ZERO brand names, ZERO typography of any kind anywhere. Not even decorative or blurry text. If you are tempted to add any text or logo, DO NOT. This is a strict requirement
 - The image MUST fill the ENTIRE canvas edge to edge. No borders, no margins, no padding, no grey areas around the edges. Content goes right up to every edge.
 - Premium, confident, uncluttered. Never busy, never tacky.`;
 }
