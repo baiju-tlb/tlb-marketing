@@ -1656,6 +1656,62 @@ async function loadPosters() {
   cachedPosters = posters;
   renderPosters(cachedPosters);
   lucide.createIcons();
+  loadAiCost();
+}
+
+let _aiCostCache = null;
+
+async function loadAiCost() {
+  const res = await api('/api/ai-cost');
+  _aiCostCache = res;
+  const el = document.getElementById('poster-cost-value');
+  if (el && res.costInr != null) el.textContent = res.costInr.toFixed(2);
+}
+
+function openAiCostModal() {
+  const modal = document.getElementById('modal-ai-cost');
+  const totalEl = document.getElementById('cost-modal-total');
+  const logsEl = document.getElementById('cost-modal-logs');
+  const emptyEl = document.getElementById('cost-modal-empty');
+  if (!_aiCostCache) { loadAiCost().then(() => openAiCostModal()); return; }
+  const { costInr, logs } = _aiCostCache;
+  totalEl.textContent = '₹' + (costInr || 0).toFixed(2);
+  if (!logs || !logs.length) {
+    logsEl.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+  } else {
+    emptyEl.classList.add('hidden');
+    // Group by date
+    const fmt = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    const timeFmt = new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const actionColors = {
+      'Poster Generated': 'text-brand-600 bg-brand-50',
+      'Poster Regenerated': 'text-amber-600 bg-amber-50',
+      'Caption Generated': 'text-teal-600 bg-teal-50',
+      'Poster Ideas': 'text-purple-600 bg-purple-50'
+    };
+    logsEl.innerHTML = logs.map(log => {
+      const d = new Date(log.created_at?.endsWith('Z') ? log.created_at : (log.created_at + 'Z'));
+      const dateStr = isNaN(d) ? log.created_at : fmt.format(d);
+      const timeStr = isNaN(d) ? '' : timeFmt.format(d);
+      const cls = actionColors[log.action] || 'text-gray-600 bg-gray-50';
+      const userName = log.user_email ? log.user_email.split('@')[0] : '';
+      return `<tr class="border-b border-gray-50 hover:bg-gray-50/50">
+        <td class="py-2 pr-3">
+          <div class="text-xs text-gray-600">${escHtml(dateStr)}</div>
+          <div class="text-[10px] text-gray-400">${escHtml(timeStr)}</div>
+        </td>
+        <td class="py-2">
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-medium ${cls}">${escHtml(log.action)}</span>
+          ${log.poster_id ? '<span class="text-[10px] text-gray-300 ml-1">#' + log.poster_id + '</span>' : ''}
+          ${userName ? '<span class="text-[10px] text-gray-400 ml-1">by ' + escHtml(userName) + '</span>' : ''}
+        </td>
+        <td class="py-2 text-right font-medium text-gray-700">₹${log.amount_inr.toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+  }
+  modal.classList.remove('hidden');
+  lucide.createIcons();
 }
 
 function setPosterViewMode(mode) {
@@ -1916,6 +1972,7 @@ async function generatePosterIdeas() {
     const res = await api('/api/poster-ideas', { method: 'POST', body: { occasion } });
     if (res.error) throw new Error(res.error);
     const ideas = res.ideas || [];
+    loadAiCost();
     if (!ideas.length) { list.innerHTML = '<p class="text-xs text-gray-400">No ideas generated. Try again.</p>'; return; }
     list.innerHTML = ideas.map((idea, i) => `
       <button type="button" onclick="pickPosterIdea(this)" data-brief="${escHtml(idea.brief)}"
@@ -2073,6 +2130,7 @@ async function generatePosterCaption() {
     }
     area.classList.add('hidden');
     result.classList.remove('hidden');
+    loadAiCost();
   } catch (err) {
     showToast(err.message || 'Caption generation failed', 'error');
   } finally {

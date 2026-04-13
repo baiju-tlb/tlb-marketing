@@ -274,7 +274,12 @@
                 <p class="text-sm text-gray-400 mt-1">Branded posters for Instagram, Facebook, LinkedIn & more</p>
               </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-3">
+              <button onclick="openAiCostModal()" id="poster-total-cost" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-100 text-xs hover:bg-amber-100 transition cursor-pointer" title="Click to view cost breakdown">
+                <i data-lucide="indian-rupee" class="w-3.5 h-3.5 text-amber-600"></i>
+                <span class="text-amber-700 font-medium"><span id="poster-cost-value">0.00</span></span>
+                <span class="text-amber-400">spent</span>
+              </button>
               <div id="posters-view-toggle" class="inline-flex items-center border border-gray-200 rounded-lg p-0.5 bg-white">
                 <button type="button" data-mode="grid" onclick="setPosterViewMode('grid')" title="Grid view"
                   class="poster-view-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition">
@@ -1168,6 +1173,41 @@
             <i data-lucide="save" class="w-4 h-4"></i> Save Changes
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Cost Breakdown Modal -->
+  <div id="modal-ai-cost" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800">AI Spend Breakdown</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Estimated cost of Gemini API calls</p>
+        </div>
+        <button onclick="closeModal('modal-ai-cost')" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="px-6 py-4 border-b border-gray-100 bg-amber-50/50">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-600">Total Spend</span>
+          <span class="text-xl font-bold text-amber-700" id="cost-modal-total">₹0.00</span>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto px-6 py-3">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
+              <th class="text-left py-2 font-medium">Date</th>
+              <th class="text-left py-2 font-medium">Action</th>
+              <th class="text-right py-2 font-medium">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="cost-modal-logs"></tbody>
+        </table>
+        <p id="cost-modal-empty" class="hidden text-center text-xs text-gray-400 py-6">No AI costs recorded yet.</p>
+      </div>
+      <div class="px-6 py-3 border-t border-gray-100 flex justify-end">
+        <button onclick="closeModal('modal-ai-cost')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Close</button>
       </div>
     </div>
   </div>

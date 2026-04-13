@@ -726,6 +726,27 @@ function sanitizeSpacing(raw) {
   return Object.keys(out).length ? out : null;
 }
 
+// ==================== AI COST TRACKING ====================
+function getSessionEmail(req) {
+  const token = req.cookies?.tlb_session;
+  if (!token) return null;
+  const session = sessionStore.get(token);
+  return (session && Date.now() <= session.expires) ? session.email : null;
+}
+
+function addAiCost(inr, action, posterId, userEmail) {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'ai_cost_inr'").get();
+  const current = parseFloat(row?.value || '0');
+  db.prepare("UPDATE settings SET value = ? WHERE key = 'ai_cost_inr'").run((current + inr).toFixed(2));
+  db.prepare("INSERT INTO ai_cost_log (action, amount_inr, poster_id, user_email) VALUES (?, ?, ?, ?)").run(action, inr, posterId || null, userEmail || null);
+}
+
+app.get('/api/ai-cost', (req, res) => {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'ai_cost_inr'").get();
+  const logs = db.prepare('SELECT * FROM ai_cost_log ORDER BY created_at DESC LIMIT 200').all();
+  res.json({ costInr: parseFloat(row?.value || '0'), logs });
+});
+
 app.get('/api/poster-options', (req, res) => {
   res.json({
     occasions: Object.entries(posterGenerator.OCCASIONS).map(([key, val]) => ({ value: key, label: val.label })),
@@ -740,6 +761,7 @@ app.post('/api/poster-ideas', async (req, res) => {
   const { occasion } = req.body || {};
   try {
     const ideas = await posterGenerator.generatePosterIdeas({ occasion: occasion || 'custom' });
+    addAiCost(0.08, 'Poster Ideas', null, getSessionEmail(req));
     res.json({ ideas });
   } catch (err) {
     console.error('Poster ideas error:', err);
@@ -813,6 +835,7 @@ app.post('/api/posters/generate', upload.single('referenceImage'), async (req, r
     );
 
     const poster = db.prepare('SELECT * FROM posters WHERE id = ?').get(info.lastInsertRowid);
+    addAiCost(3.5, 'Poster Generated', poster.id, getSessionEmail(req));
     res.json({ success: true, poster });
   } catch (err) {
     console.error('Poster generation error:', err);
@@ -851,6 +874,7 @@ app.post('/api/posters/:id/regenerate', async (req, res) => {
     }
 
     const result = await posterGenerator.generatePoster(opts);
+    addAiCost(3.5, 'Poster Regenerated', poster.id, getSessionEmail(req));
 
     // Remove old final and background files
     if (poster.image_url) {
@@ -986,6 +1010,7 @@ app.post('/api/posters/:id/generate-caption', async (req, res) => {
       occasion: poster.occasion,
       language: poster.language
     });
+    addAiCost(0.08, 'Caption Generated', poster.id, getSessionEmail(req));
     // Auto-save the generated caption
     db.prepare("UPDATE posters SET caption_title = ?, caption_text = ?, caption_hashtags = ?, updated_at = datetime('now') WHERE id = ?")
       .run(caption.title || '', caption.caption || '', caption.hashtags || '', poster.id);

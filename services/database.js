@@ -57,6 +57,15 @@ db.exec(`
     value TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS ai_cost_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action TEXT NOT NULL,
+    amount_inr REAL NOT NULL,
+    poster_id INTEGER,
+    user_email TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     linkedin_sub TEXT UNIQUE,
@@ -125,6 +134,7 @@ addColumnIfMissing('posters', 'spacing', 'TEXT');    // JSON: { headlineSubtext,
 addColumnIfMissing('posters', 'caption_title', 'TEXT');
 addColumnIfMissing('posters', 'caption_text', 'TEXT');
 addColumnIfMissing('posters', 'caption_hashtags', 'TEXT');
+addColumnIfMissing('ai_cost_log', 'user_email', 'TEXT');
 addColumnIfMissing('posters', 'published_platforms', 'TEXT'); // JSON array: ["instagram","facebook"]
 addColumnIfMissing('posters', 'published_link', 'TEXT');
 addColumnIfMissing('posters', 'published_at', 'TEXT');
@@ -136,5 +146,25 @@ insertSetting.run('auto_approve', 'false');
 insertSetting.run('tone', 'professional');
 insertSetting.run('regions', 'odisha,karnataka,national');
 insertSetting.run('post_types', 'news_commentary,educational,industry_insight,product_highlight');
+insertSetting.run('ai_cost_inr', '0');
+
+// One-time backfill: estimate cost for existing posters created before tracking
+(function backfillAiCost() {
+  const logCount = db.prepare('SELECT COUNT(*) as c FROM ai_cost_log').get().c;
+  if (logCount === 0) {
+    const posters = db.prepare('SELECT id, created_at FROM posters ORDER BY created_at ASC').all();
+    if (posters.length > 0) {
+      const ins = db.prepare('INSERT INTO ai_cost_log (action, amount_inr, poster_id, created_at) VALUES (?, ?, ?, ?)');
+      const batch = db.transaction(() => {
+        for (const p of posters) {
+          ins.run('Poster Generated', 3.5, p.id, p.created_at);
+        }
+      });
+      batch();
+      const estimated = (posters.length * 3.5).toFixed(2);
+      db.prepare("UPDATE settings SET value = ? WHERE key = 'ai_cost_inr'").run(estimated);
+    }
+  }
+})();
 
 module.exports = db;
