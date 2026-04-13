@@ -816,7 +816,7 @@
               <label class="text-sm text-gray-500">Your idea / brief <span class="text-gray-300 font-normal">(optional, include mood &amp; colours)</span></label>
               <button type="button" onclick="generatePosterIdeas()" id="btn-poster-ideas"
                 class="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium px-2 py-1 rounded-md hover:bg-brand-50 transition">
-                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> Give me ideas
+                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> Give me ideas <span class="text-gray-300 font-normal">(~₹0.08)</span>
               </button>
             </div>
             <textarea id="poster-prompt" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm leading-relaxed" placeholder='e.g., "Vibrant festive pinks and golds", "Warm family moments at sunset", "Monochrome emerald green, editorial"'></textarea>
@@ -946,7 +946,7 @@
       <div id="poster-form-footer" class="flex-shrink-0 border-t border-gray-100 px-6 py-4 bg-white flex justify-end gap-3">
         <button onclick="closeModal('modal-poster')" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
         <button onclick="submitPosterGenerate()" id="btn-poster-generate" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition flex items-center gap-2">
-          <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Poster
+          <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Poster <span class="text-brand-200 font-normal">(~₹3.5)</span>
         </button>
       </div>
     </div>
@@ -984,7 +984,7 @@
               <div id="poster-caption-area">
                 <button onclick="generatePosterCaption()" id="btn-generate-caption"
                   class="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition">
-                  <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Caption & Hashtags
+                  <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Caption & Hashtags <span class="text-gray-300 font-normal">(~₹0.08)</span>
                 </button>
               </div>
               <div id="poster-caption-result" class="hidden mt-3 space-y-3">
@@ -1010,7 +1010,7 @@
                   </button>
                   <button onclick="generatePosterCaption()" id="btn-regen-caption"
                     class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition">
-                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Regenerate
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Regenerate <span class="text-gray-300">(~₹0.08)</span>
                   </button>
                 </div>
               </div>
@@ -1154,7 +1154,7 @@
             <i data-lucide="pencil-ruler" class="w-4 h-4"></i> Edit Design
           </button>
           <button onclick="regenerateCurrentPoster()" id="btn-poster-regen" class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Regenerate
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Regenerate <span class="text-gray-300 font-normal">(~₹3.5)</span>
           </button>
           <button onclick="downloadCurrentPoster()" class="flex items-center gap-2 bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
             <i data-lucide="download" class="w-4 h-4"></i> Download
