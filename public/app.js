@@ -1904,6 +1904,41 @@ async function openPosterModal() {
   lucide.createIcons();
 }
 
+// ==================== POSTER IDEAS ====================
+async function generatePosterIdeas() {
+  const btn = document.getElementById('btn-poster-ideas');
+  const list = document.getElementById('poster-ideas-list');
+  const occasion = document.getElementById('poster-occasion')?.value || 'custom';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Thinking...'; }
+  list.innerHTML = '';
+  list.classList.remove('hidden');
+  try {
+    const res = await api('/api/poster-ideas', { method: 'POST', body: { occasion } });
+    if (res.error) throw new Error(res.error);
+    const ideas = res.ideas || [];
+    if (!ideas.length) { list.innerHTML = '<p class="text-xs text-gray-400">No ideas generated. Try again.</p>'; return; }
+    list.innerHTML = ideas.map((idea, i) => `
+      <button type="button" onclick="pickPosterIdea(this)" data-brief="${escHtml(idea.brief)}"
+        class="w-full text-left p-2.5 rounded-lg border border-gray-150 hover:border-brand-400 hover:bg-brand-50/50 transition group">
+        <p class="text-xs font-semibold text-gray-700 group-hover:text-brand-700">${escHtml(idea.title)}</p>
+        <p class="text-[11px] text-gray-500 mt-0.5 leading-relaxed">${escHtml(idea.brief)}</p>
+      </button>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = '<p class="text-xs text-red-500">Failed to generate ideas. Try again.</p>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> Give me ideas'; }
+    lucide.createIcons();
+  }
+}
+
+function pickPosterIdea(el) {
+  const brief = el.dataset.brief || '';
+  const textarea = document.getElementById('poster-prompt');
+  if (textarea) textarea.value = brief;
+  document.getElementById('poster-ideas-list').classList.add('hidden');
+}
+
 // ==================== REFERENCE IMAGE ====================
 let _posterRefFile = null;
 

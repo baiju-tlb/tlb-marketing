@@ -736,6 +736,17 @@ app.get('/api/poster-options', (req, res) => {
   });
 });
 
+app.post('/api/poster-ideas', async (req, res) => {
+  const { occasion } = req.body || {};
+  try {
+    const ideas = await posterGenerator.generatePosterIdeas({ occasion: occasion || 'custom' });
+    res.json({ ideas });
+  } catch (err) {
+    console.error('Poster ideas error:', err);
+    res.status(500).json({ error: 'Failed to generate ideas' });
+  }
+});
+
 app.get('/api/posters', (req, res) => {
   const { limit = 50, offset = 0 } = req.query;
   const posters = db.prepare('SELECT * FROM posters ORDER BY created_at DESC LIMIT ? OFFSET ?').all(Number(limit), Number(offset));

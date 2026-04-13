@@ -1132,5 +1132,35 @@ Return ONLY valid JSON (no markdown, no code fences, no extra text) in this exac
 
 module.exports = {
   OCCASIONS, LANGUAGES, SIZES, BG_STYLES, LAYOUTS, LAYOUT_TEMPLATES, TLB_BRAND,
-  generatePoster, generatePosterCopy, generateBackgroundImage, recomposePoster, generateCaption
+  generatePoster, generatePosterCopy, generateBackgroundImage, recomposePoster, generateCaption, generatePosterIdeas
 };
+
+async function generatePosterIdeas({ occasion }) {
+  const occ = OCCASIONS[occasion] || OCCASIONS.custom;
+  const prompt = `You are a creative director for "The Land Bankers" (TLB), India's first land rating platform that helps landowners verify documents, monitor boundaries, value land, and resolve disputes.
+
+Generate 3 creative poster brief ideas for the occasion/theme: "${occ.label}"${occ.context ? ` (${occ.context})` : ''}.
+
+Each idea should be a short, specific creative direction that a designer can follow. Include mood, colours, visual elements, or scene descriptions.
+
+Return ONLY a valid JSON array (no markdown fences) with exactly 3 objects:
+[
+  { "title": "Short 3-5 word title", "brief": "1-2 sentence creative brief with mood, colours, and visual direction" },
+  ...
+]
+
+Rules:
+- Do NOT use em dashes or en dashes. Use commas or periods.
+- Make each idea distinctly different in mood and visual style
+- Include specific colour suggestions or mood references
+- Keep briefs concise but vivid enough to guide image generation
+- Think about what would work well on social media`;
+
+  const raw = await geminiText(prompt, { temperature: 1.0, maxTokens: 1024, noThinking: true });
+  try {
+    const cleaned = (raw || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return [];
+  }
+}

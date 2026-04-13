@@ -812,8 +812,15 @@
 
           <!-- Custom prompt / brief -->
           <div>
-            <label class="block text-sm text-gray-500 mb-1">Your idea / brief <span class="text-gray-300 font-normal">(optional, include mood &amp; colours)</span></label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-sm text-gray-500">Your idea / brief <span class="text-gray-300 font-normal">(optional, include mood &amp; colours)</span></label>
+              <button type="button" onclick="generatePosterIdeas()" id="btn-poster-ideas"
+                class="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium px-2 py-1 rounded-md hover:bg-brand-50 transition">
+                <i data-lucide="lightbulb" class="w-3.5 h-3.5"></i> Give me ideas
+              </button>
+            </div>
             <textarea id="poster-prompt" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm leading-relaxed" placeholder='e.g., "Vibrant festive pinks and golds", "Warm family moments at sunset", "Monochrome emerald green, editorial"'></textarea>
+            <div id="poster-ideas-list" class="hidden mt-2 space-y-1.5"></div>
             <p class="text-xs text-gray-400 mt-1">Want off-brand colours (vibrant, pastel, monochrome)? Say so here. Leave blank to stay on the TLB navy + teal palette.</p>
           </div>
 
