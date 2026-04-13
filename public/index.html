@@ -285,17 +285,21 @@
                   <i data-lucide="list" class="w-4 h-4"></i>
                 </button>
               </div>
-              <button onclick="openPosterModal()" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition">
-                <i data-lucide="plus" class="w-4 h-4"></i> Create Poster
-              </button>
             </div>
           </div>
 
           <div id="posters-container" class="space-y-8">
             <div class="bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
-              No posters yet. Click "Create Poster" to design your first one.
+              No posters yet. Tap the <strong>+</strong> button to design your first one.
             </div>
           </div>
+
+          <!-- Floating action button -->
+          <button onclick="openPosterModal()" title="Create Poster"
+            class="fixed bottom-6 right-6 z-30 bg-brand-600 hover:bg-brand-700 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center gap-2 px-5 py-3.5 transition-all hover:scale-105 active:scale-95">
+            <i data-lucide="plus" class="w-5 h-5"></i>
+            <span class="text-sm font-medium">Create New Poster</span>
+          </button>
         </div>
       </div>
 
@@ -854,7 +858,7 @@
           <!-- Background style -->
           <div>
             <label class="block text-sm text-gray-500 mb-2">Background Style</label>
-            <div id="poster-bg-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div id="poster-bg-grid" class="grid grid-cols-3 sm:grid-cols-6 gap-2">
               <!-- Populated by JS -->
             </div>
           </div>

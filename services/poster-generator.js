@@ -180,7 +180,15 @@ const BG_STYLES = {
   },
   cartoon: {
     label: 'Cartoon',
-    desc: 'hand-drawn cartoon illustration featuring Indian people or families as the main subject, rendered as clearly stylised cartoon characters with expressive faces, clean bold outlines, flat cel-shaded colours and friendly rounded proportions. Think modern editorial cartoon or animated-film keyframe style (Pixar / Disney / Studio Ghibli inspired), not photography, not realistic, not 3D render. Warm, human, culturally grounded scene appropriate to the occasion — show people in the moment, not just props'
+    desc: 'hand-drawn cartoon illustration featuring Indian people or families as the main subject, rendered as clearly stylised cartoon characters with expressive faces, clean bold outlines, flat cel-shaded colours and friendly rounded proportions. Think modern editorial cartoon or animated-film keyframe style (Pixar / Disney / Studio Ghibli inspired), not photography, not realistic, not 3D render. Warm, human, culturally grounded scene appropriate to the occasion, show people in the moment, not just props'
+  },
+  lineart: {
+    label: 'Line Art / Sketch',
+    desc: 'black and white hand-drawn line art sketch illustration on a clean white background. Pen-and-ink style with crosshatching and fine detailed strokes. Think editorial newspaper illustration or architectural sketch. Subjects can include documents, laptops, people from behind, land plots, signboards, all drawn in a loose expressive ink-sketch style with no colour fills, no shading gradients, just pure black linework on white'
+  },
+  painting: {
+    label: 'Art Painting',
+    desc: 'warm painterly digital illustration in a rich acrylic or gouache painting style with visible brushstrokes, soft blended colours, and a storybook aesthetic. Think Indian children book illustration or Amul-girl style art. Scenes feature everyday Indian life, people, street scenes, nature, festivals, rendered with thick paint texture, warm saturated tones, soft golden or ambient lighting, and a nostalgic heartfelt mood. Not photorealistic, not flat vector, purely painted and textured'
   }
 };
 
@@ -321,9 +329,11 @@ async function generateBackgroundPrompt({ occasion, customPrompt, backgroundStyl
   // precedence over the default brand palette. Otherwise stick to TLB navy + teal.
   const hasBrief = Boolean(customPrompt && customPrompt.trim());
   const refNote = referenceImage ? '\n- A REFERENCE IMAGE is attached. Use it as visual inspiration for style, mood, composition, or subject matter. Adapt it to fit the requirements below, do NOT simply copy it.' : '';
-  const paletteRule = hasBrief
-    ? `- Colour and mood direction: follow the user brief above exactly. If the brief mentions specific colours, moods, or a palette (e.g. "vibrant pinks", "monochrome gold", "warm pastel"), those OVERRIDE any default brand palette. Do NOT add TLB navy or teal unless the brief asks for it.`
-    : `- Colour palette: use TLB brand palette only — dark navy (#0C1421), dark slate (#101828), TLB teal (#30B0A4), soft teal (#A8E2DB). Do not introduce other colours.`;
+  const paletteRule = backgroundStyle === 'lineart'
+    ? `- Colour palette: STRICTLY black and white only. Pure black ink lines on a clean white background. No colour, no grey fills, no gradients, no tints. Only black linework on white.`
+    : hasBrief
+      ? `- Colour and mood direction: follow the user brief above exactly. If the brief mentions specific colours, moods, or a palette (e.g. "vibrant pinks", "monochrome gold", "warm pastel"), those OVERRIDE any default brand palette. Do NOT add TLB navy or teal unless the brief asks for it.`
+      : `- Colour palette: use TLB brand palette only — dark navy (#0C1421), dark slate (#101828), TLB teal (#30B0A4), soft teal (#A8E2DB). Do not introduce other colours.`;
 
   // YouTube thumbnail style: eye-catching, high contrast, centered focal point,
   // title will be overlaid in the middle instead of the bottom. No branding.

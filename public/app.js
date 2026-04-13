@@ -1437,7 +1437,7 @@ let posterSelectedLayout = 'auto';
 
 // Values that should render with a small "NEW" badge to flag recently-added
 // options in the Create Poster modal.
-const POSTER_NEW_VALUES = new Set(['youtube', 'cartoon']);
+const POSTER_NEW_VALUES = new Set(['youtube', 'lineart', 'painting']);
 
 function posterNewBadge(value) {
   return POSTER_NEW_VALUES.has(value)
@@ -1864,17 +1864,25 @@ async function openPosterModal() {
 
   // Background style grid (slightly larger card-style buttons)
   const bgGrid = document.getElementById('poster-bg-grid');
-  const styleIcons = { plain: '◻︎', graphics: '✦', people: '☺', cartoon: '✎' };
+  const styleThumbs = {
+    plain: '/assets/images/bg-plain.svg',
+    graphics: '/assets/images/bg-graphics.svg',
+    people: '/assets/images/bg-people.svg',
+    cartoon: '/assets/images/bg-cartoon.svg',
+    lineart: '/assets/images/bg-lineart.svg',
+    painting: '/assets/images/bg-painting.svg'
+  };
   const renderBgGrid = () => {
     bgGrid.innerHTML = posterOptions.backgroundStyles.map(s => {
       const active = s.value === posterSelectedBgStyle;
       const cls = active
         ? 'border-brand-500 bg-brand-50 text-brand-700'
         : 'border-gray-200 text-gray-700 hover:border-gray-300';
+      const thumb = styleThumbs[s.value] || styleThumbs.graphics;
       return `<button type="button" data-value="${s.value}"
         class="poster-bg-btn relative px-3 py-3 rounded-lg border-2 text-xs font-medium text-center transition ${cls}">
         ${POSTER_NEW_VALUES.has(s.value) ? '<span class="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[9px] font-bold uppercase tracking-wider">New</span>' : ''}
-        <span class="block text-base mb-0.5">${styleIcons[s.value] || '◆'}</span>${escHtml(s.label)}
+        <img src="${thumb}" class="w-10 h-10 mx-auto mb-1 rounded object-cover" alt="${escHtml(s.label)}"/>${escHtml(s.label)}
       </button>`;
     }).join('');
     bgGrid.querySelectorAll('.poster-bg-btn').forEach(btn => {

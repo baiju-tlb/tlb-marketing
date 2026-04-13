@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <rect width="80" height="80" rx="6" fill="#1a2332"/>
+  <!-- person silhouette 1 -->
+  <circle cx="30" cy="28" r="7" fill="#A8E2DB" opacity="0.7"/>
+  <path d="M20 55 Q20 40 30 40 Q40 40 40 55" fill="#A8E2DB" opacity="0.5"/>
+  <!-- person silhouette 2 -->
+  <circle cx="52" cy="30" r="6" fill="#30B0A4" opacity="0.6"/>
+  <path d="M43 55 Q43 42 52 42 Q61 42 61 55" fill="#30B0A4" opacity="0.4"/>
+  <!-- ground -->
+  <rect x="0" y="55" width="80" height="25" rx="0" fill="#0C1421" opacity="0.5"/>
+</svg>

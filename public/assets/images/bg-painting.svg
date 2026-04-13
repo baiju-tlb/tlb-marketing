@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <rect width="80" height="80" rx="6" fill="#E8D5B7"/>
+  <!-- sky with painterly blobs -->
+  <rect x="0" y="0" width="80" height="40" rx="6" fill="#87CEEB" opacity="0.6"/>
+  <ellipse cx="18" cy="14" rx="14" ry="7" fill="#fff" opacity="0.5"/>
+  <ellipse cx="60" cy="10" rx="10" ry="5" fill="#fff" opacity="0.4"/>
+  <!-- sun glow -->
+  <circle cx="65" cy="20" r="10" fill="#FFD54F" opacity="0.6"/>
+  <circle cx="65" cy="20" r="6" fill="#FFECB3" opacity="0.8"/>
+  <!-- painterly trees -->
+  <ellipse cx="15" cy="38" rx="8" ry="10" fill="#4CAF50" opacity="0.7"/>
+  <rect x="13" y="42" width="4" height="10" fill="#795548" opacity="0.6"/>
+  <ellipse cx="68" cy="40" rx="7" ry="8" fill="#388E3C" opacity="0.6"/>
+  <rect x="66" y="44" width="4" height="8" fill="#6D4C41" opacity="0.5"/>
+  <!-- ground with warm tones -->
+  <path d="M0 50 Q20 44 40 50 Q60 56 80 48 L80 80 L0 80Z" fill="#A5D6A7" opacity="0.5"/>
+  <path d="M0 58 Q30 52 50 60 Q70 55 80 58 L80 80 L0 80Z" fill="#81C784" opacity="0.4"/>
+  <!-- brush stroke textures -->
+  <path d="M5 68 Q20 62 40 68 Q55 72 75 66" fill="none" stroke="#795548" stroke-width="1.5" opacity="0.3"/>
+</svg>
