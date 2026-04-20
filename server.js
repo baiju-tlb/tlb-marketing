@@ -25,6 +25,13 @@ app.use(cookieParser());
 // ==================== AUTH ====================
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'tlbamar';
+// Per-user credentials (checked before the shared password fallback)
+const USER_CREDENTIALS = {
+  'soyong@tlb': 'GreatContent1',
+  'sudhansu@tlb': 'GreatContent2',
+  'gyana@tlb': 'GreatContent3',
+  'suraj@tlb': 'GreatContent4',
+};
 const sessionStore = new Map(); // token -> { email, expires }
 
 function createSession(email) {
@@ -77,12 +84,18 @@ app.post('/api/auth/login', (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
   const password = (req.body.password || '');
 
-  if (!ALLOWED_EMAILS.includes(email)) {
+  // Check per-user credentials first, then fall back to shared password for ALLOWED_EMAILS
+  const perUserPass = USER_CREDENTIALS[email];
+  if (perUserPass) {
+    if (password !== perUserPass) {
+      return res.status(401).json({ error: 'Incorrect password.' });
+    }
+  } else if (ALLOWED_EMAILS.includes(email)) {
+    if (password !== LOGIN_PASSWORD) {
+      return res.status(401).json({ error: 'Incorrect password.' });
+    }
+  } else {
     return res.status(403).json({ error: 'This email is not authorized.' });
-  }
-
-  if (password !== LOGIN_PASSWORD) {
-    return res.status(401).json({ error: 'Incorrect password.' });
   }
 
   const token = createSession(email);
