@@ -79,8 +79,8 @@
             <p class="text-sm font-medium text-gray-500 truncate" id="sidebar-user-email">Loading...</p>
             <p class="text-xs text-gray-400">Admin</p>
           </div>
-          <button onclick="logout()" class="text-gray-400 hover:text-red-500 transition" title="Logout">
-            <i data-lucide="log-out" class="w-4 h-4"></i>
+          <button onclick="logout()" class="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition" title="Logout">
+            <i data-lucide="log-out" class="w-4 h-4"></i> Logout
           </button>
         </div>
       </div>
@@ -290,6 +290,9 @@
                   <i data-lucide="list" class="w-4 h-4"></i>
                 </button>
               </div>
+              <button onclick="logout()" title="Logout" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-500 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Logout
+              </button>
             </div>
           </div>
 
